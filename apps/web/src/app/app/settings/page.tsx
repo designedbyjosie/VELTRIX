@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { requireUser } from "@/server/current-user";
 import { getConsents } from "@/server/services/users";
+import { mfaStatus } from "@/server/services/auth";
 import { listApiTokens, listAuditEvents, listSessions } from "@/server/services/settings";
 import { integrationStatuses } from "@/server/providers/integrations";
 import { resolveSession, SESSION_COOKIE } from "@/server/auth/session";
@@ -12,7 +13,7 @@ export const metadata = { title: "Settings" };
 export default async function SettingsPage() {
   const user = await requireUser();
   const session = await resolveSession((await cookies()).get(SESSION_COOKIE)?.value);
-  const [consents, sessions, tokens, events] = await Promise.all([getConsents(user.id), listSessions(user.id, session?.sessionId), listApiTokens(user.id), listAuditEvents(user.id)]);
+  const [consents, sessions, tokens, events, mfa] = await Promise.all([getConsents(user.id), listSessions(user.id, session?.sessionId), listApiTokens(user.id), listAuditEvents(user.id), mfaStatus(user.id)]);
   return (
     <div className="space-y-5">
       <PageHeader title="Settings" description="Profile, privacy choices, connected devices and your data." />
@@ -24,6 +25,7 @@ export default async function SettingsPage() {
         tokens={tokens}
         events={events}
         integrations={integrationStatuses()}
+        mfa={mfa}
       />
     </div>
   );

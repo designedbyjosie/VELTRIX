@@ -7,7 +7,9 @@ import { db } from "@/server/db";
 import { resetRateLimits } from "@/server/rate-limit";
 import { call, newUser } from "./helpers";
 
-beforeEach(() => resetRateLimits());
+beforeEach(async () => {
+  await resetRateLimits();
+});
 
 describe("authentication", () => {
   it("registers, sets an HttpOnly session cookie and stores only a password hash", async () => {
@@ -25,11 +27,12 @@ describe("authentication", () => {
     expect(cookie).not.toContain(session.tokenHash);
   });
 
-  it("rejects duplicate emails, weak passwords and missing consent", async () => {
+  it("rejects duplicate emails, weak or common passwords and missing consent", async () => {
     const { email } = await newUser(register);
     expect((await call(register, "/api/auth/register", { body: { name: "X", email, password: "correct horse battery", acceptTerms: true } })).status).toBe(409);
     expect((await call(register, "/api/auth/register", { body: { name: "X", email: "a@b.co", password: "short", acceptTerms: true } })).status).toBe(422);
     expect((await call(register, "/api/auth/register", { body: { name: "X", email: "c@d.co", password: "correct horse battery", acceptTerms: false } })).status).toBe(422);
+    expect((await call(register, "/api/auth/register", { body: { name: "X", email: "e@f.co", password: "password123", acceptTerms: true } })).status).toBe(422);
   });
 
   it("logs in with the right password only", async () => {
@@ -49,7 +52,7 @@ describe("authentication", () => {
   it("rate-limits repeated failures for one account", async () => {
     const { email } = await newUser(register);
     let last = 0;
-    for (let i = 0; i < 10; i++) last = (await call(login, "/api/auth/login", { body: { email, password: "nope-nope-nope" } })).status;
+    for (let i = 0; i < 9; i++) last = (await call(login, "/api/auth/login", { body: { email, password: "nope-nope-nope" } })).status;
     expect(last).toBe(429);
   });
 

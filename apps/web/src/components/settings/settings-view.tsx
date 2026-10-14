@@ -6,6 +6,7 @@ import { Copy, Download, KeyRound, MonitorSmartphone, Puzzle, ShieldCheck } from
 import { SUPPORTED_CURRENCIES } from "@veltrix/shared";
 import { Badge, Button, Card, ConfirmButton, DemoBadge, Field, FormError, Input, Modal, Select, useToast } from "@/components/ui";
 import { LoadDemoButton } from "@/components/dashboard/load-demo";
+import { TwoFactorCard } from "./two-factor";
 import { api, ApiError } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 
@@ -17,6 +18,7 @@ interface Props {
   tokens: { id: string; name: string; prefix: string; createdAt: string; lastUsedAt: string | null; expiresAt: string }[];
   events: { id: string; type: string; createdAt: string; userAgent: string | null }[];
   integrations: { id: string; name: string; purpose: string; configured: boolean; mode: string; envVars: string[] }[];
+  mfa: { enabled: boolean; recoveryCodesRemaining: number };
 }
 
 function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description: ReactNode }) {
@@ -41,6 +43,16 @@ const EVENT_LABELS: Record<string, string> = {
   "auth.login_failed": "Failed sign-in",
   "auth.logout": "Signed out",
   "auth.password_changed": "Password changed",
+  "auth.email_verified": "Email confirmed",
+  "auth.password_reset_requested": "Password reset requested",
+  "auth.password_reset": "Password reset by email link",
+  "auth.account_locked": "Sign-in locked after failed attempts",
+  "auth.mfa_enabled": "Two-factor sign-in turned on",
+  "auth.mfa_disabled": "Two-factor sign-in turned off",
+  "auth.mfa_recovery_regenerated": "New backup codes created",
+  "auth.mfa_failed": "Incorrect two-factor code",
+  "bank.connected": "Bank connected",
+  "bank.removed": "Bank connection removed",
   "session.revoked": "Session revoked",
   "extension.pairing_code_created": "Extension pairing code created",
   "extension.paired": "Browser extension connected",
@@ -108,7 +120,7 @@ function PairExtension() {
   );
 }
 
-export function SettingsView({ profile, preference, consents: initialConsents, sessions, tokens, events, integrations }: Props) {
+export function SettingsView({ profile, preference, consents: initialConsents, sessions, tokens, events, integrations, mfa }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [consents, setConsents] = useState(initialConsents);
@@ -280,6 +292,7 @@ export function SettingsView({ profile, preference, consents: initialConsents, s
           </Button>
         </form>
         {pwError && !pwError.fields.length && <FormError message={pwError.message} />}
+        <TwoFactorCard enabled={mfa.enabled} recoveryCodesRemaining={mfa.recoveryCodesRemaining} />
         <p className="mt-5 text-xs font-medium text-ink3">Active sessions</p>
         <ul className="mt-1 divide-y divide-line-soft">
           {sessions.map((s) => (

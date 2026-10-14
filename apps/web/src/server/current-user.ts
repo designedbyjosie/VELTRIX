@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "./db";
 import { resolveSession, SESSION_COOKIE } from "./auth/session";
+import { env } from "./env";
 
 export const getCurrentUser = cache(async () => {
   const store = await cookies();
@@ -19,14 +20,18 @@ export const getCurrentUser = cache(async () => {
     timezone: user.profile?.timezone ?? "UTC",
     plan: user.profile?.plan ?? "free",
     hasDemoData: user.profile?.hasDemoData ?? false,
+    emailVerified: !!user.emailVerifiedAt,
+    mfaEnabled: !!user.mfaEnabledAt,
     preference: user.preference,
   };
 });
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
+/** Signed-in user with a confirmed email (unless verification is disabled). */
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (!user.emailVerified && env.requireEmailVerification) redirect("/verify-email");
   return user;
 }

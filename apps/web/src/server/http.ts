@@ -24,6 +24,8 @@ export interface HandlerOptions<B, Q> {
   body?: ZodType<B, ZodTypeDef, unknown>;
   query?: ZodType<Q, ZodTypeDef, unknown>;
   rateLimit?: { key: string; limit: number; windowMs: number; by?: "ip" | "user" };
+  /** Allow signed-in users who haven't verified their email yet (auth flows only). */
+  allowUnverified?: boolean;
 }
 
 export interface HandlerContext<B, Q, P> {
@@ -45,10 +47,11 @@ export function clientIp(req: Request): string | null {
 }
 
 export function json(data: unknown, init: ResponseInit = {}): Response {
-  return new Response(JSON.stringify(data), {
-    ...init,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...(init.headers ?? {}) },
-  });
+  // Headers (not a plain object) so multiple Set-Cookie values survive.
+  const headers = new Headers(init.headers);
+  headers.set("content-type", "application/json; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  return new Response(JSON.stringify(data), { ...init, headers });
 }
 
 export function errorResponse(err: unknown): Response {
@@ -111,6 +114,9 @@ export function handler<B = undefined, Q = undefined, P = Record<string, string>
       const auth = await authenticate(req, mode);
       if (mode !== "none" && !auth) throw unauthorized();
       if (auth?.kind === "token" && opts.scope && !auth.scopes.includes(opts.scope)) throw forbidden("This token isn't allowed to do that.");
+      if (auth && !auth.emailVerified && env.requireEmailVerification && !opts.allowUnverified) {
+        throw new HttpError(403, "email_unverified", "Confirm your email address to continue. Check your inbox for the link.");
+      }
 
       if (auth?.kind === "session" && MUTATING.has(req.method) && !originAllowed(req)) {
         await audit("security.origin_rejected", { userId: auth.userId, ip, userAgent, metadata: { origin: req.headers.get("origin") ?? "" } });
@@ -122,7 +128,7 @@ export function handler<B = undefined, Q = undefined, P = Record<string, string>
 
       if (opts.rateLimit) {
         const who = opts.rateLimit.by === "user" && auth ? auth.userId : ip ?? "unknown";
-        const r = rateLimit(`${opts.rateLimit.key}:${who}`, opts.rateLimit.limit, opts.rateLimit.windowMs);
+        const r = await rateLimit(`${opts.rateLimit.key}:${who}`, opts.rateLimit.limit, opts.rateLimit.windowMs);
         if (!r.ok) {
           await audit("security.rate_limited", { userId: auth?.userId, ip, userAgent, metadata: { key: opts.rateLimit.key } });
           return json(

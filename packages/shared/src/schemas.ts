@@ -39,7 +39,7 @@ export const accountTypes = [
 export const registerSchema = z.object({
   name: shortText(80).min(1, "Enter your name"),
   email: z.string().trim().toLowerCase().email("Enter a valid email").max(254),
-  password: z.string().min(10, "Use at least 10 characters").max(200),
+  password: z.lazy(() => passwordSchema),
   acceptTerms: z.literal(true, { errorMap: () => ({ message: "Accept the terms to continue" }) }),
 });
 export const loginSchema = z.object({
@@ -322,3 +322,25 @@ export interface ExtensionAnalysis {
   disclaimers: string[];
   generatedAt: string;
 }
+
+// ---------- Account security ----------
+/** A small list of passwords that appear at the top of every breach corpus. */
+const COMMON_PASSWORDS = new Set([
+  "password", "password1", "password12", "password123", "123456789", "1234567890", "12345678910", "qwertyuiop", "qwerty1234", "1q2w3e4r5t",
+  "iloveyou12", "letmein123", "welcome123", "admin12345", "abc1234567", "passw0rd12", "football12", "baseball12", "superman12", "trustno1234",
+  "veltrix123", "veltrix1234", "0123456789", "1111111111", "aaaaaaaaaa", "changeme12", "monkey1234", "dragon1234", "sunshine12", "princess12",
+]);
+export const passwordSchema = z
+  .string()
+  .min(10, "Use at least 10 characters")
+  .max(200)
+  .refine((p) => !COMMON_PASSWORDS.has(p.toLowerCase()), "That password is too common. Choose something less predictable.")
+  .refine((p) => new Set(p).size >= 4, "Use a more varied password.");
+export const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email").max(254);
+export const tokenSchema = z.string().trim().min(20).max(200);
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+export const resetPasswordSchema = z.object({ token: tokenSchema, password: passwordSchema });
+export const verifyEmailSchema = z.object({ token: tokenSchema });
+export const mfaCodeSchema = z.object({ code: z.string().trim().min(6, "Enter the 6-digit code").max(12) });
+export const mfaDisableSchema = z.object({ password: z.string().min(1).max(200), code: z.string().trim().min(6).max(12) });
+export const passwordConfirmSchema = z.object({ password: z.string().min(1).max(200) });

@@ -169,11 +169,22 @@ enum ConsentPurpose {
 // ---------------------------------------------------------------- identity
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  /// Set once the user proves they control the email address.
+  emailVerifiedAt  DateTime?
+  /// Consecutive failed sign-ins; the account locks temporarily after too many.
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  /// TOTP secret, AES-256-GCM encrypted with ENCRYPTION_KEY. Pending until confirmed with a code.
+  mfaSecretEnc     String?
+  mfaPendingEnc    String?
+  mfaEnabledAt     DateTime?
+  /// Last accepted TOTP time-step, to reject replayed codes.
+  mfaLastStep      Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   profile           UserProfile?
   preference        UserPreference?
@@ -207,6 +218,82 @@ model User {
   notifications     Notification[]
   consents          ConsentRecord[]
   auditEvents       AuditEvent[]
+  authTokens        AuthToken[]
+  recoveryCodes     MfaRecoveryCode[]
+  loginChallenges   LoginChallenge[]
+  plaidItems        PlaidItem[]
+}
+
+enum AuthTokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+/// Single-use emailed link tokens. Only the SHA-256 hash is stored.
+model AuthToken {
+  id        String           @id @default(cuid())
+  userId    String
+  purpose   AuthTokenPurpose
+  tokenHash String           @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}
+
+/// One-time backup codes for two-factor sign-in. Only hashes are stored.
+model MfaRecoveryCode {
+  id       String    @id @default(cuid())
+  userId   String
+  codeHash String    @unique
+  usedAt   DateTime?
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// A sign-in that passed the password check and is waiting for the second factor.
+model LoginChallenge {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Fixed-window rate-limit counters shared by every server instance.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+/// A bank connection made through Plaid Link. The access token is encrypted at rest.
+model PlaidItem {
+  id              String             @id @default(cuid())
+  userId          String
+  itemId          String             @unique
+  institutionId   String?
+  institutionName String
+  accessTokenEnc  String
+  /// /transactions/sync cursor; null until the first sync.
+  cursor          String?
+  status          String             @default("ok")
+  errorCode       String?
+  lastSyncedAt    DateTime?
+  createdAt       DateTime           @default(now())
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts        ConnectedAccount[]
+
+  @@index([userId])
 }
 
 model UserProfile {
@@ -286,6 +373,7 @@ model ConnectedAccount {
   source         DataOrigin  @default(MANUAL)
   /// ID at the aggregation provider, when connected through one.
   externalId     String?
+  plaidItemId    String?
   mask           String      @default("")
   currency       String      @default("USD") @db.Char(3)
   currentBalance Decimal     @db.Decimal(18, 2)
@@ -295,6 +383,7 @@ model ConnectedAccount {
   updatedAt      DateTime    @updatedAt
 
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaidItem    PlaidItem?          @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
   balances     AccountBalance[]
   transactions Transaction[]
   holdings     InvestmentHolding[]

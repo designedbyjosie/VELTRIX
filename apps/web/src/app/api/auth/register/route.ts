@@ -1,6 +1,7 @@
 import { registerSchema } from "@veltrix/shared";
 import { handler, json } from "@/server/http";
 import { registerUser } from "@/server/services/users";
+import { sendVerificationEmail } from "@/server/services/auth";
 import { createSession, sessionCookie } from "@/server/auth/session";
 import { audit } from "@/server/audit";
 import { env } from "@/server/env";
@@ -16,7 +17,15 @@ export const POST = handler({ auth: "none", body, rateLimit: { key: "register", 
     timezone = "UTC";
   }
   const user = await registerUser({ name: body.name, email: body.email, password: body.password, timezone });
+  let emailSent = true;
+  try {
+    await sendVerificationEmail(user.id);
+  } catch (e) {
+    // The account exists either way; the user can request another email from the verify page.
+    console.error("[veltrix] verification email failed", e);
+    emailSent = false;
+  }
   const { token } = await createSession(user.id, userAgent);
   await audit("auth.register", { userId: user.id, ip, userAgent });
-  return json({ ok: true }, { status: 201, headers: { "set-cookie": sessionCookie(token, env.isProduction) } });
+  return json({ ok: true, verificationRequired: env.requireEmailVerification, emailSent }, { status: 201, headers: { "set-cookie": sessionCookie(token, env.isProduction) } });
 });

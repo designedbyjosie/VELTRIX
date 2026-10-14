@@ -12,6 +12,7 @@ export interface AuthContext {
   sessionId?: string;
   tokenId?: string;
   scopes: string[];
+  emailVerified: boolean;
 }
 
 export async function createSession(userId: string, userAgent: string | null) {
@@ -24,13 +25,13 @@ export async function createSession(userId: string, userAgent: string | null) {
 
 export async function resolveSession(token: string | null | undefined): Promise<AuthContext | null> {
   if (!token || token.length > 200) return null;
-  const session = await db.session.findUnique({ where: { tokenHash: sha256(token) } });
+  const session = await db.session.findUnique({ where: { tokenHash: sha256(token) }, include: { user: { select: { emailVerifiedAt: true } } } });
   if (!session || session.expiresAt < new Date()) return null;
   // Sliding activity timestamp, at most once an hour.
   if (Date.now() - session.lastSeenAt.getTime() > 3_600_000) {
     await db.session.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(() => undefined);
   }
-  return { userId: session.userId, kind: "session", sessionId: session.id, scopes: ["*"] };
+  return { userId: session.userId, kind: "session", sessionId: session.id, scopes: ["*"], emailVerified: !!session.user.emailVerifiedAt };
 }
 
 export async function destroySession(token: string | null | undefined) {
@@ -53,7 +54,8 @@ export async function resolveApiToken(token: string | null | undefined): Promise
   if (!record.lastUsedAt || Date.now() - record.lastUsedAt.getTime() > 300_000) {
     await db.apiToken.update({ where: { id: record.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
   }
-  return { userId: record.userId, kind: "token", tokenId: record.id, scopes: record.scopes };
+  // Tokens can only be created by verified users (pairing requires verification).
+  return { userId: record.userId, kind: "token", tokenId: record.id, scopes: record.scopes, emailVerified: true };
 }
 
 export function readCookie(header: string | null, name: string): string | null {
@@ -71,4 +73,14 @@ export function sessionCookie(token: string, secure: boolean): string {
 
 export function clearSessionCookie(secure: boolean): string {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`;
+}
+
+export const MFA_COOKIE = "vx_mfa";
+
+export function mfaCookie(token: string, secure: boolean): string {
+  return `${MFA_COOKIE}=${token}; Path=/api/auth; HttpOnly; SameSite=Strict; Max-Age=300${secure ? "; Secure" : ""}`;
+}
+
+export function clearMfaCookie(secure: boolean): string {
+  return `${MFA_COOKIE}=; Path=/api/auth; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`;
 }

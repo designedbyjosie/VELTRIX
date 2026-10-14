@@ -1,4 +1,5 @@
 import { resetRateLimits } from "@/server/rate-limit";
+import { db } from "@/server/db";
 
 export const BASE = "http://localhost:3000";
 
@@ -37,11 +38,12 @@ export async function call(fn: Handler, path: string, opts: CallOpts = {}) {
 }
 
 let n = 0;
-export async function newUser(register: Handler, name = "Test User") {
-  resetRateLimits();
+export async function newUser(register: Handler, name = "Test User", opts: { verified?: boolean } = {}) {
+  await resetRateLimits();
   const email = `user${Date.now()}${n++}@example.com`;
   const r = await call(register, "/api/auth/register", { body: { name, email, password: "correct horse battery", acceptTerms: true } });
   if (r.status !== 201) throw new Error(`register failed: ${JSON.stringify(r.json)}`);
   const cookie = r.headers.get("set-cookie")!.split(";")[0];
+  if (opts.verified !== false) await db.user.update({ where: { email }, data: { emailVerifiedAt: new Date() } });
   return { email, cookie };
 }
