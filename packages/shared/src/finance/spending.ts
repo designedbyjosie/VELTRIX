@@ -92,3 +92,40 @@ export function monthlyCashflow(txns: SpendTxn[]): MonthlyCashflow[] {
       savingsRate: savingsRate(e.income, e.spending),
     }));
 }
+
+/** Categories paid as a few fixed bills per month: extrapolating a daily pace from them is meaningless. */
+export const FIXED_BILL_GROUPS: readonly string[] = ["housing", "utilities"];
+
+export interface SpikeInput {
+  group: string;
+  spentCents: Cents; // this month so far (positive)
+  txnCount: number; // purchases in this group this month
+  day: number; // day of month (1-based)
+  daysInMonth: number;
+  monthlyAverageCents: Cents; // average of recent full months
+}
+
+export interface SpikeResult {
+  /** "actual": already spent more than usual; "pace": projected from the daily pace. */
+  method: "actual" | "pace";
+  projectedCents: Cents;
+}
+
+/**
+ * Flags a category running well above its recent monthly average.
+ * Fixed bills (rent, utilities) are judged on what's actually been spent — one rent
+ * payment on the 1st must never be projected forward as if it repeated daily.
+ * Variable categories use the daily pace, but only once there are enough purchases
+ * (≥ 4) and enough days (≥ 7) for a pace to mean something.
+ */
+export function spendingSpike(i: SpikeInput): SpikeResult | null {
+  const MIN_EXCESS = 5000; // $50
+  if (i.monthlyAverageCents <= MIN_EXCESS) return null;
+  const isSpike = (amount: Cents) => amount > i.monthlyAverageCents * 1.3 && amount - i.monthlyAverageCents > MIN_EXCESS;
+  if (FIXED_BILL_GROUPS.includes(i.group)) {
+    return isSpike(i.spentCents) ? { method: "actual", projectedCents: i.spentCents } : null;
+  }
+  if (i.day < 7 || i.txnCount < 4) return isSpike(i.spentCents) ? { method: "actual", projectedCents: i.spentCents } : null;
+  const projected = Math.round((i.spentCents / i.day) * i.daysInMonth);
+  return isSpike(projected) ? { method: "pace", projectedCents: projected } : null;
+}

@@ -9,6 +9,7 @@ import {
   projectMonthEnd,
   savingsRate,
   spendingBreakdown,
+  spendingSpike,
   summarizeBudget,
   summarizePortfolio,
 } from "../src/finance";
@@ -175,5 +176,23 @@ describe("portfolio", () => {
     expect(s.largestPositionPercent).toBe(90);
     expect(s.concentrationLevel).toBe("concentrated");
     expect(s.unrealizedGainCents).toBe(400);
+  });
+});
+
+describe("spending spikes", () => {
+  const base = { day: 14, daysInMonth: 31 };
+  it("never extrapolates a single rent payment", () => {
+    expect(spendingSpike({ ...base, group: "housing", spentCents: 185000, txnCount: 1, monthlyAverageCents: 185000 })).toBeNull();
+    expect(spendingSpike({ ...base, group: "utilities", spentCents: 19600, txnCount: 3, monthlyAverageCents: 24745 })).toBeNull();
+  });
+  it("flags fixed bills only when actual spending already exceeds the usual amount", () => {
+    expect(spendingSpike({ ...base, group: "housing", spentCents: 300000, txnCount: 2, monthlyAverageCents: 185000 })).toEqual({ method: "actual", projectedCents: 300000 });
+  });
+  it("requires enough purchases before projecting a pace", () => {
+    expect(spendingSpike({ ...base, group: "shopping", spentCents: 20000, txnCount: 2, monthlyAverageCents: 25000 })).toBeNull();
+    expect(spendingSpike({ ...base, group: "food", spentCents: 60000, txnCount: 12, monthlyAverageCents: 70000 })).toEqual({ method: "pace", projectedCents: Math.round((60000 / 14) * 31) });
+  });
+  it("ignores small categories", () => {
+    expect(spendingSpike({ ...base, group: "entertainment", spentCents: 4000, txnCount: 5, monthlyAverageCents: 3000 })).toBeNull();
   });
 });

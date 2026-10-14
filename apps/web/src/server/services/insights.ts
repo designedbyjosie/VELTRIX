@@ -5,7 +5,7 @@
  *   and what the user can do (action). Potential savings are never shown as confirmed.
  */
 import type { Prisma } from "@prisma/client";
-import { formatMoney, monthlyCashflow, spendingBreakdown } from "@veltrix/shared";
+import { formatMoney, monthlyCashflow, spendingBreakdown, spendingSpike } from "@veltrix/shared";
 import { db } from "../db";
 import { dec, cents } from "../money";
 import { addDays, addMonths, monthStart, todayIn, daysInMonth } from "../dates";
@@ -143,31 +143,38 @@ export async function computeInsights(userId: string, timezone = "UTC", currency
     }
   }
 
-  // 5. Category spending well above recent average (projected to month end)
+  // 5. Category spending well above its recent average
   if (last3.length >= 20) {
     const avg = new Map(spendingBreakdown(last3).slices.map((s) => [s.group, s.totalCents / 3]));
     const dim = daysInMonth(ym);
     const day = Number(today.slice(8, 10));
-    if (day >= 7) {
-      for (const s of spendingBreakdown(thisMonth).slices) {
-        const base = avg.get(s.group) ?? 0;
-        const projected = Math.round((s.totalCents / day) * dim);
-        if (base > 5000 && projected > base * 1.3 && projected - base > 5000) {
-          out.push({
-            kind: "spending_spike",
-            dedupeKey: `spike:${s.group}:${ym}`,
-            title: `${s.group === "food" ? "Food & dining" : s.group[0].toUpperCase() + s.group.slice(1)} spending is running high`,
-            summary: `At this pace you'll spend about ${fmt(projected)} this month, compared with a ${fmt(Math.round(base))} monthly average.`,
-            rationale: "Catching a spending trend mid-month leaves time to adjust.",
-            calculation: `${fmt(s.totalCents)} in ${day} days, projected over ${dim} days = ${fmt(projected)}; average of the last 3 full months = ${fmt(Math.round(base))}.`,
-            assumptions: ["Assumes spending continues at the same daily pace.", "One large purchase can make the projection overstate the trend."],
-            action: "See transactions",
-            actionHref: `/app/transactions`,
-            estimateType: "NONE",
-            priority: 55,
-          });
-        }
-      }
+    for (const s of spendingBreakdown(thisMonth).slices) {
+      const base = Math.round(avg.get(s.group) ?? 0);
+      const spike = spendingSpike({ group: s.group, spentCents: s.totalCents, txnCount: s.count, day, daysInMonth: dim, monthlyAverageCents: base });
+      if (!spike) continue;
+      const label = s.group === "food" ? "Food & dining" : s.group[0].toUpperCase() + s.group.slice(1);
+      out.push({
+        kind: "spending_spike",
+        dedupeKey: `spike:${s.group}:${ym}`,
+        title: `${label} spending is running high`,
+        summary:
+          spike.method === "pace"
+            ? `At this pace you'll spend about ${fmt(spike.projectedCents)} this month, compared with a ${fmt(base)} monthly average.`
+            : `You've already spent ${fmt(s.totalCents)} this month, compared with a ${fmt(base)} monthly average.`,
+        rationale: "Catching a spending trend mid-month leaves time to adjust.",
+        calculation:
+          spike.method === "pace"
+            ? `${fmt(s.totalCents)} across ${s.count} purchases in ${day} days, projected over ${dim} days = ${fmt(spike.projectedCents)}; average of the last 3 full months = ${fmt(base)}.`
+            : `${fmt(s.totalCents)} spent so far this month (no projection); average of the last 3 full months = ${fmt(base)}.`,
+        assumptions:
+          spike.method === "pace"
+            ? ["Assumes spending continues at the same daily pace.", "One large purchase can make the projection overstate the trend."]
+            : ["Based only on money already spent; fixed bills like rent and utilities are never projected forward."],
+        action: "See transactions",
+        actionHref: `/app/transactions`,
+        estimateType: "NONE",
+        priority: 55,
+      });
     }
   }
 
