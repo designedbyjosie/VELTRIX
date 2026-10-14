@@ -45,13 +45,18 @@ Immutable snapshots of the baseline, assumptions, changes and projection. Later 
 ### 6. Command center, built (first version)
 The advisor calls `get_financial_profile`, `run_what_if`, `review_purchase` and `stress_test`. Without an AI key, the built-in parser understands common what-if phrasings. Answers link to the full view in the What-if Lab, and data changes still require Apply (see advisor actions).
 
+### 7. Opportunity graph, built
+- **Problem:** alert feeds show isolated, repetitive notices without saying how they relate or how sure they are.
+- **Alternatives:** budget apps send budget, bill and subscription alerts separately; shopping tools alert on price drops without reference to the plan.
+- **VELTRIX:** the existing recommendations became one structured model (`FinancialInsight`) with linked records, confidence and its basis, event date, last-verified time, evidence rows, next action, status (open, following, done, dismissed, resolved automatically) and outcome. New connected rules: a renewal landing in a category already over budget; recurring price increases; upcoming bills vs. cash; a trip that delays a goal (via the plan engine); a saved product's good price checked against the plan; saved research mentioning a holding or watchlist symbol. Overlapping cards are consolidated into one event, and possible savings are totaled with each underlying charge counted once. Ranking is base + impact + timing, × confidence, × a feedback factor that only counts recent dismissals of that kind. Each card shows this breakdown. Users can follow, dismiss with an outcome, mark done, or mute a kind.
+- **Success metric:** share of opportunities marked "acted" vs. "not relevant"/"not accurate" per kind (used to tune or retire rules); possible savings acted on.
+
 ## Next, in dependency order
 
-1. **Opportunity graph:** a structured `Opportunity` model (event, affected records, impact, confidence, evidence, last verified, next action, status/outcome). Rules connect existing signals: a recurring charge renewing while over budget, a price drop on a saved product when a goal milestone is reached, a trip conflicting with a debt target. Ranked by benefit × urgency × confidence, with deduplication so savings aren't double-counted.
-2. **Financial memory:** saved preferences (budgeting method, priorities, uncertainty tolerance) the user can inspect, edit and disable. These are used by the advisor and the plan defaults. Planning assumptions already form the first part of this.
-3. **Permissions center and autopilot:** per-capability toggles, pending actions and action history. It builds on the advisor-actions model (proposed → applied/dismissed, audited). The scope stays at read-only analysis and proposals; nothing moves money.
-4. **Data-source status page:** connection health, last sync, permission scope and limitations for Plaid, Finnhub, FX and email. Partly present in Settings → Integrations and the profile issues list.
-5. **Opportunity radar:** verified offers and price changes only, with source, date and eligibility. It needs merchant and travel price feeds (not configured), so it shows "possible" rather than "verified" until those exist.
+1. **Financial memory:** saved preferences (budgeting method, priorities, uncertainty tolerance) the user can inspect, edit and disable. These are used by the advisor and the plan defaults. Planning assumptions already form the first part of this.
+2. **Permissions center and autopilot:** per-capability toggles, pending actions and action history. It builds on the advisor-actions model (proposed → applied/dismissed, audited). The scope stays at read-only analysis and proposals; nothing moves money.
+3. **Data-source status page:** connection health, last sync, permission scope and limitations for Plaid, Finnhub, FX and email. Partly present in Settings → Integrations and the profile issues list.
+4. **Opportunity radar:** verified offers and price changes only, with source, date and eligibility. It needs merchant and travel price feeds (not configured), so it shows "possible" rather than "verified" until those exist.
 
 ## Dependencies still missing
 - Plaid production approval (real bank data beyond sandbox) and Plaid webhooks.

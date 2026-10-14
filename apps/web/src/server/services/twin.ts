@@ -180,16 +180,24 @@ export async function buildProfile(userId: string, ctx: Ctx) {
     const lines = await db.budgetCategory.findMany({ where: { budgetId }, include: { category: true } });
     budgetLines = lines.map((l) => ({ slug: l.category.slug, name: l.category.name, limitCents: cents(l.limitAmount), essential: essentialSet.has(l.category.slug) }));
   }
-  if (!monthsCovered && budgetLines.length) {
+  // Sparse transaction history (e.g. a few charges logged by hand) would understate spending,
+  // so when a budget exists and recorded spending covers less than half of it, use the budget.
+  const budgetTotal = budgetLines.reduce((s, l) => s + l.limitCents, 0);
+  const recordedMonthly = essentialMonthly + discretionaryMonthly;
+  const sparse = monthsCovered > 0 && budgetTotal > 0 && recordedMonthly < budgetTotal * 0.5;
+  if ((!monthsCovered || sparse) && budgetLines.length) {
     spendSource = "budget";
     essentialMonthly = budgetLines.filter((l) => l.essential).reduce((s, l) => s + l.limitCents, 0);
     discretionaryMonthly = budgetLines.filter((l) => !l.essential).reduce((s, l) => s + l.limitCents, 0);
-    spendBasis = "Your monthly budget limits (no full month of transactions yet)";
+    spendBasis = sparse
+      ? `Your monthly budget limits. Recorded transactions average only ${formatMoney(recordedMonthly, ctx.currency)} a month, less than half your budget, so they look incomplete`
+      : "Your monthly budget limits (no full month of transactions yet)";
+    if (sparse) issues.push({ severity: "info", message: "Your recorded transactions look incomplete compared with your budget, so planning uses your budget. Connect a bank or import a CSV for actual spending.", href: "/app/transactions?import=1" });
   }
   if (spendSource === "missing") {
     spendBasis = "No transactions or budget yet";
     issues.push({ severity: "warning", message: "Add transactions (connect a bank or import a CSV) or set a budget so VELTRIX knows your monthly spending.", href: "/app/setup" });
-  } else if (monthsCovered === 1) {
+  } else if (monthsCovered === 1 && spendSource !== "budget") {
     issues.push({ severity: "info", message: "Spending is based on one month of history. Estimates improve with three.", href: null });
   }
 
@@ -284,7 +292,7 @@ export async function buildProfile(userId: string, ctx: Ctx) {
     figures,
     accounts,
     debts,
-    categories: categoriesMonthly.map(({ slug, name, monthlyCents, essential }) => ({ slug, name, monthlyCents, essential })),
+    categories: spendSource === "budget" ? [] : categoriesMonthly.map(({ slug, name, monthlyCents, essential }) => ({ slug, name, monthlyCents, essential })),
     budget: budgetLines,
     commitments,
     goals: planGoals,

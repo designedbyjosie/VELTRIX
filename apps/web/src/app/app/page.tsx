@@ -194,10 +194,10 @@ export default async function HomePage() {
       size: "full",
       node: (
         <Card
-          title="Top AI recommendations"
+          title="Top opportunities"
           action={
-            <Link href="/app/advisor" className="text-xs text-cyan hover:underline">
-              Ask the advisor
+            <Link href="/app/opportunities" className="text-xs text-cyan hover:underline">
+              All opportunities
             </Link>
           }
         >

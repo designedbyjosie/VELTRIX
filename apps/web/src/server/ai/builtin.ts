@@ -190,6 +190,19 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
     return { text: lines.filter(Boolean).join("\n"), tools: used };
   }
 
+  if (/(opportunit|recommendation|what should i (look at|review|do|know)|anything i should|needs? my attention|what'?s (important|urgent))/.test(q)) {
+    const d = (await call("get_insights")) as unknown as Data[];
+    if (!d.length) return { text: "Nothing needs your attention right now. VELTRIX only surfaces something when it's backed by your data: renewals, price increases, upcoming bills, trips that affect goals, budget and goal alerts.", tools: used };
+    return {
+      text: [
+        `Here ${d.length === 1 ? "is what" : `are the top ${Math.min(5, d.length)} things`} worth your attention:`,
+        ...d.slice(0, 5).map((i) => bullet(`${i.title}${i.impact ? ` (${i.impact})` : ""}. ${i.why} Next: ${i.nextAction}.`)),
+        "Each one shows its evidence, confidence and the records it connects on the Opportunities page.",
+      ].join("\n"),
+      tools: used,
+    };
+  }
+
   if (/(subscription|recurring|cancel)/.test(q)) {
     const d = await call("get_recurring_payments");
     if (!d.items.length) return { text: "I haven't found recurring charges yet. Detection needs at least three months of transactions with the same merchant and a similar amount.", tools: used };

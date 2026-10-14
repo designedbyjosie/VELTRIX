@@ -319,12 +319,29 @@ export const TOOLS: AdvisorTool<any>[] = [
   },
   {
     name: "get_insights",
-    description: "VELTRIX's current explainable recommendations for the user, with calculations and assumptions.",
+    description: "VELTRIX's current opportunities: connected, explainable findings (renewals while over budget, price increases, upcoming bills vs. cash, trips that delay goals, price drops vs. the plan, subscriptions, budget and goal alerts) with calculations, confidence, linked records and next actions.",
     input: z.object({}),
     jsonSchema: noArgs,
     async run(ctx) {
       const items = await listInsights(ctx.userId, 10);
-      return { label: "Current recommendations", provenance: ["estimate"], data: items.map((i) => ({ title: i.title, summary: i.summary, calculation: i.calculation, assumptions: i.assumptions, estimate: i.estimateCents !== null ? `${formatMoney(i.estimateCents, ctx.currency)} (${i.estimateType.toLowerCase()})` : null })) };
+      return {
+        label: "Current opportunities",
+        provenance: ["estimate"],
+        link: { label: "Open opportunities", href: "/app/opportunities" },
+        data: items.map((i) => ({
+          title: i.title,
+          summary: i.summary,
+          why: i.rationale,
+          calculation: i.calculation,
+          assumptions: i.assumptions,
+          connects: i.links.map((l) => `${l.type}: ${l.name}`),
+          confidence: `${i.confidence} (${i.confidenceBasis})`,
+          eventDate: i.eventDate,
+          impact: i.estimateCents !== null ? `${formatMoney(i.estimateCents, ctx.currency)} (${i.estimateType === "POTENTIAL" ? "possible, not saved" : i.estimateType === "CONFIRMED" ? "known amount" : "info"})` : null,
+          status: i.status,
+          nextAction: i.action,
+        })),
+      };
     },
   },
   {

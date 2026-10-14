@@ -117,6 +117,10 @@ static/manifest.template.json   host permission = VELTRIX_API_URL origin (set at
 - **Advisor tools** `get_financial_profile`, `run_what_if`, `review_purchase` and `stress_test` call the same services. The built-in parser `ai/whatif.ts` maps common what-if phrasings onto them, and results link to `/app/plan`.
 - **Extension:** product analyses include the purchase review (`product.decision`), computed with the same engine.
 
+## Opportunity graph
+
+`services/insights.ts` computes opportunities from accounts, transactions, recurring charges, budgets, goals, trips, saved products, articles, holdings and the financial profile. Each draft carries `links` (connected records), `confidence` and its basis, `eventDate`, evidence rows and `savingsParts`. `consolidate()` merges overlapping drafts (one card per event), and `rankOpportunity()` (shared, pure) scores them with a stored breakdown. `refreshInsights` upserts by `dedupeKey`, keeps user decisions (dismissed or done), reopens items whose condition returns, and marks items whose condition no longer holds as `RESOLVED`. `totalPotentialSavings` sums possible savings with each underlying record counted once. Muted kinds live in `UserPreference.mutedInsightKinds`. The UI is at `/app/opportunities`, and the dashboard shows the top items.
+
 ## Guided setup and dashboard layout
 
 - `/app/setup` walks a new user through either path: **Connect my bank** (Plaid Link, then income, budget and goal, prefilled from the linked history via `GET /api/setup`) or **Enter it myself** (accounts, income with pay frequency, monthly spending per category, a goal). `POST /api/setup` saves everything at once and marks `onboardingCompletedAt`.

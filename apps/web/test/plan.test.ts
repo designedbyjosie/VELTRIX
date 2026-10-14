@@ -72,6 +72,16 @@ describe("financial profile", () => {
     expect(p.figures.discretionary.cents).toBe(12000);
   });
 
+  it("prefers the budget when recorded transactions look incomplete", async () => {
+    const u = await plannedUser(); // budget totals $2,400/mo
+    const last = addMonths(thisMonth, -1);
+    await call(createTxn, "/api/transactions", { cookie: u.cookie, body: { date: `${last}-04`, amount: "-15.49", merchant: "Netflix" } });
+    const p = (await call(getProfile, "/api/plan/profile", { cookie: u.cookie })).json.profile;
+    expect(p.figures.essential).toMatchObject({ cents: 200000, source: "budget" });
+    expect(p.figures.essential.basis).toMatch(/look incomplete/);
+    expect(p.issues.some((i: { message: string }) => /look incomplete/.test(i.message))).toBe(true);
+  });
+
   it("lets the user change assumptions and exclude accounts, but only their own", async () => {
     const u = await plannedUser();
     const other = await newUser(register);

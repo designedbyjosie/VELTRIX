@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChartPie, CircleDollarSign, Plane, Repeat, ShieldCheck, ShoppingBag, Sparkles, Target, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarClock, ChartPie, CircleDollarSign, FileText, Plane, Repeat, ShieldCheck, ShoppingBag, Sparkles, Target, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import { Badge, Button, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
 import { money } from "@/lib/format";
@@ -22,7 +22,7 @@ export interface InsightView {
   estimateType: "CONFIRMED" | "POTENTIAL" | "NONE";
 }
 
-const ICONS: Record<string, LucideIcon> = { subscriptions: Repeat, budget: ChartPie, goal: Target, emergency_fund: ShieldCheck, spending_spike: TrendingUp, idle_cash: Wallet, price: ShoppingBag, trip: Plane, savings_rate: CircleDollarSign };
+const ICONS: Record<string, LucideIcon> = { subscriptions: Repeat, budget: ChartPie, goal: Target, emergency_fund: ShieldCheck, spending_spike: TrendingUp, idle_cash: Wallet, price: ShoppingBag, trip: Plane, savings_rate: CircleDollarSign, renewal_over_budget: Repeat, bill_increase: TrendingUp, commitments_vs_cash: CalendarClock, trip_vs_goal: Plane, research_holding: FileText };
 
 export function InsightExplain({ insight, open, onClose }: { insight: InsightView; open: boolean; onClose: () => void }) {
   return (

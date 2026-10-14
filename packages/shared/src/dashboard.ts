@@ -9,7 +9,7 @@ export const DASHBOARD_WIDGETS = [
   { id: "performance", label: "Investment performance", description: "Portfolio value over time", size: "half" },
   { id: "budget", label: "Budget progress", description: "This month's budget categories", size: "half" },
   { id: "goals", label: "Goals", description: "Progress toward your savings goals", size: "half" },
-  { id: "recommendations", label: "AI recommendations", description: "Things worth reviewing", size: "full" },
+  { id: "recommendations", label: "Top opportunities", description: "Connected findings worth reviewing", size: "full" },
 ] as const;
 
 export type DashboardWidget = (typeof DASHBOARD_WIDGETS)[number]["id"];

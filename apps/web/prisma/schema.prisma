@@ -99,8 +99,13 @@ enum AlertStatus {
 
 enum InsightStatus {
   ACTIVE
+  /// Pinned by the user; kept up to date and shown first.
+  FOLLOWING
   DISMISSED
+  /// The user marked it handled (see outcome).
   DONE
+  /// The condition no longer holds; retired automatically.
+  RESOLVED
 }
 
 enum EstimateType {
@@ -324,6 +329,8 @@ model UserPreference {
   notifyPriceDrops     Boolean  @default(true)
   notifyGoals          Boolean  @default(true)
   extensionAutoAnalyze Boolean  @default(true)
+  /// Opportunity kinds the user muted.
+  mutedInsightKinds    String[] @default([])
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -673,24 +680,37 @@ model MarketAlert {
 /// An explainable recommendation. Every insight records what, why, how it was calculated,
 /// its assumptions, and the action the user can take.
 model FinancialInsight {
-  id             String        @id @default(cuid())
-  userId         String
-  kind           String
-  title          String
-  summary        String
-  rationale      String
-  calculation    String
-  assumptions    String[]
-  action         String
-  actionHref     String?
-  estimateAmount Decimal?      @db.Decimal(18, 2)
-  estimateType   EstimateType  @default(NONE)
-  evidence       Json?
-  priority       Int           @default(0)
-  status         InsightStatus @default(ACTIVE)
-  dedupeKey      String
-  generatedAt    DateTime      @default(now())
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String        @id @default(cuid())
+  userId          String
+  kind            String
+  title           String
+  summary         String
+  rationale       String
+  calculation     String
+  assumptions     String[]
+  action          String
+  actionHref      String?
+  estimateAmount  Decimal?      @db.Decimal(18, 2)
+  estimateType    EstimateType  @default(NONE)
+  evidence        Json?
+  priority        Int           @default(0)
+  status          InsightStatus @default(ACTIVE)
+  dedupeKey       String
+  /// Records this opportunity connects: [{type, id, name, href}].
+  links           Json?
+  confidence      String        @default("medium")
+  confidenceBasis String        @default("")
+  /// When the underlying event happens (renewal date, trip start…), if any.
+  eventDate       DateTime?     @db.Date
+  /// Ranking score and its parts, for "why is this ranked here?".
+  score           Float         @default(0)
+  scoreBasis      Json?
+  outcome         String?
+  outcomeAt       DateTime?
+  firstSeenAt     DateTime      @default(now())
+  /// Last time the rule re-checked the data and the condition still held.
+  generatedAt     DateTime      @default(now())
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, dedupeKey])
   @@index([userId, status])

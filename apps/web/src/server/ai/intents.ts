@@ -35,7 +35,7 @@ const CATEGORY_WORDS: [BudgetSlug, RegExp][] = [
 
 const WIDGET_WORDS: [DashboardWidget, RegExp][] = [
   ["plan", /\b(monthly plan|plan|cash ?flow|income card|left ?over)\b/],
-  ["recommendations", /\b(recommendations?|insights?|tips|suggestions)\b/],
+  ["recommendations", /\b(recommendations?|insights?|tips|suggestions|opportunit(y|ies))\b/],
   ["performance", /\b(investments?|portfolio|performance|stocks?)\b/],
   ["spending", /\b(spending( breakdown| chart)?|where my money goes)\b/],
   ["budget", /\b(budgets?( progress)?)\b/],
