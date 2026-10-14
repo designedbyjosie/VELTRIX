@@ -12,7 +12,7 @@ Every figure is calculated by the application from your records. Demo data and s
 apps/web         Next.js 15 app: UI, API routes, services, Prisma schema & migrations
 apps/extension   Chrome/Edge MV3 extension (service worker, popup, options, on-demand extractor)
 packages/shared  Shared TypeScript: zod API contracts, money & finance calculations, CSV parsing, page extraction
-docs/            Architecture, API and security notes
+docs/            Architecture, API, security and deployment (DEPLOY.md) notes
 ```
 
 ## Quick start

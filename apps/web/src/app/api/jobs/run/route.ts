@@ -1,6 +1,7 @@
 /**
  * Scheduled maintenance: price alerts, recurring-charge detection and insight refresh
- * for every user. Call from a scheduler (cron) with `Authorization: Bearer $CRON_SECRET`.
+ * for every user. Call from a scheduler with `Authorization: Bearer $CRON_SECRET`.
+ * GET is accepted too because Vercel Cron Jobs send GET requests with that header.
  */
 import { timingSafeEqual } from "node:crypto";
 import { handler } from "@/server/http";
@@ -17,7 +18,7 @@ function authorized(header: string | null) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export const POST = handler({ auth: "none" }, async ({ req }) => {
+const run = handler({ auth: "none" }, async ({ req }) => {
   if (!authorized(req.headers.get("authorization"))) throw new HttpError(401, "unauthorized", "Invalid job credentials.");
   const users = await db.user.findMany({ select: { id: true, profile: { select: { timezone: true, baseCurrency: true } } } });
   let alerts = 0;
@@ -27,3 +28,6 @@ export const POST = handler({ auth: "none" }, async ({ req }) => {
   }
   return { users: users.length, alertsTriggered: alerts, ranAt: new Date().toISOString() };
 });
+
+export const POST = run;
+export const GET = run;
