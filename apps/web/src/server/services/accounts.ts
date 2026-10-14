@@ -4,6 +4,7 @@ import { db } from "../db";
 import { cents, decStr } from "../money";
 import { notFound } from "../errors";
 import { ymd, fromYmd, todayIn } from "../dates";
+import { fxRate } from "../providers/fx";
 
 export async function listAccounts(userId: string, includeArchived = false) {
   const rows = await db.connectedAccount.findMany({
@@ -80,14 +81,23 @@ export async function deleteAccount(userId: string, id: string) {
   await db.connectedAccount.delete({ where: { id } });
 }
 
+/**
+ * Net worth in the base currency. Foreign-currency balances are converted with the
+ * latest ECB reference rate when available; otherwise they are excluded and counted.
+ */
 export async function netWorthNow(userId: string, baseCurrency = "USD") {
   const accounts = await listAccounts(userId);
+  const foreign = [...new Set(accounts.filter((a) => a.currency !== baseCurrency).map((a) => a.currency))];
+  const rates = new Map((await Promise.all(foreign.map(async (c) => [c, await fxRate(c, baseCurrency).catch(() => null)] as const))).filter(([, r]) => r !== null));
+  const converted = accounts.map((a) => {
+    const r = rates.get(a.currency);
+    return r ? { type: a.type as AccountType, balanceCents: Math.round(a.balanceCents * r.rate), currency: baseCurrency } : { type: a.type as AccountType, balanceCents: a.balanceCents, currency: a.currency };
+  });
   return {
-    ...calculateNetWorth(
-      accounts.map((a) => ({ type: a.type as AccountType, balanceCents: a.balanceCents, currency: a.currency })),
-      baseCurrency,
-    ),
+    ...calculateNetWorth(converted, baseCurrency),
     accountCount: accounts.length,
+    convertedForeignCurrency: accounts.filter((a) => rates.has(a.currency)).length,
+    fxRates: [...rates.values()].map((r) => ({ from: r!.from, to: r!.to, rate: r!.rate, asOf: r!.asOf, source: r!.source })),
   };
 }
 

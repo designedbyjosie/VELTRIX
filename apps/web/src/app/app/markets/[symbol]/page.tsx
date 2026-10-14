@@ -20,13 +20,14 @@ export default async function InstrumentPage({ params }: { params: Promise<{ sym
   const symbol = decodeURIComponent((await params).symbol).toUpperCase();
   if (!/^[A-Z][A-Z0-9.\-^]{0,9}$/.test(symbol)) notFound();
   const md = marketData();
-  const [metrics, history, watched, alerts, holdings, articles] = await Promise.all([
+  const [metrics, history, watched, alerts, holdings, articles, news] = await Promise.all([
     instrumentMetrics(symbol),
     md.history(symbol, "1Y"),
     watchedSymbols(user.id),
     listAlerts(user.id),
     db.investmentHolding.findMany({ where: { userId: user.id, instrument: { symbol } }, include: { account: true } }),
     db.savedArticle.findMany({ where: { userId: user.id, mentionedSymbols: { has: symbol } }, orderBy: { createdAt: "desc" }, take: 5 }),
+    md.news ? md.news(symbol).catch(() => []) : Promise.resolve([]),
   ]);
   if (!metrics) {
     return (
@@ -113,19 +114,29 @@ export default async function InstrumentPage({ params }: { params: Promise<{ sym
       <div className="grid gap-4 lg:grid-cols-2">
         <AlertsCard alerts={alerts.filter((a) => a.symbol === symbol)} defaultSymbol={symbol} />
         <Card title="Related news">
-          {articles.length ? (
-            <ul className="space-y-2 text-sm">
+          {news.length === 0 && articles.length === 0 ? (
+            <p className="text-sm text-ink2">{md.news ? `No recent company news for ${symbol} from ${md.label.split(" (")[0]}.` : "Company news comes with a Finnhub market-data key."} Articles you save with the browser extension also appear here.</p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {news.map((n) => (
+                <li key={n.url}>
+                  <a href={n.url} target="_blank" rel="noopener noreferrer nofollow" className="text-ink hover:text-cyan">
+                    {n.headline}
+                  </a>
+                  <p className="text-xs text-ink3">
+                    {n.source} · {new Date(n.publishedAt).toLocaleDateString()} · via {md.label.split(" (")[0]}
+                  </p>
+                </li>
+              ))}
               {articles.map((a) => (
                 <li key={a.id}>
                   <a href={a.url} target="_blank" rel="noopener noreferrer nofollow" className="text-ink hover:text-cyan">
                     {a.title}
                   </a>
-                  <p className="text-xs text-ink3">{a.publisher}</p>
+                  <p className="text-xs text-ink3">{a.publisher} · saved by you</p>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-sm text-ink2">No saved articles mention {symbol}. A news provider isn&apos;t configured; save articles with the browser extension and they&apos;ll appear here.</p>
           )}
         </Card>
       </div>

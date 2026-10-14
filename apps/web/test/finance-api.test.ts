@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { clearFxCache } from "@/server/providers/fx";
 import { POST as register } from "@/app/api/auth/register/route";
 import { POST as createAccount } from "@/app/api/accounts/route";
 import { GET as listTxns, POST as createTxn } from "@/app/api/transactions/route";
@@ -104,6 +105,29 @@ describe("budgets, goals and net worth", () => {
     const user = await db.user.findUniqueOrThrow({ where: { email: u.email } });
     const nw = await netWorthNow(user.id);
     expect(nw.netWorthCents).toBe(500000 + 35000000 - 120050 - 20000000);
+  });
+});
+
+describe("foreign currencies", () => {
+  it("converts foreign balances at the ECB rate, and excludes them when no rate is available", async () => {
+    const u = await newUser(register);
+    await call(createAccount, "/api/accounts", { cookie: u.cookie, body: { name: "US", type: "CHECKING", balance: "1000.00", currency: "USD" } });
+    await call(createAccount, "/api/accounts", { cookie: u.cookie, body: { name: "Euro savings", type: "SAVINGS", balance: "500.00", currency: "EUR" } });
+    const user = await db.user.findUniqueOrThrow({ where: { email: u.email } });
+
+    clearFxCache();
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ base: "EUR", date: "2026-10-13", rates: { USD: 1.1 } }), { status: 200 }));
+    const nw = await netWorthNow(user.id, "USD");
+    expect(nw.netWorthCents).toBe(100000 + 55000);
+    expect(nw.convertedForeignCurrency).toBe(1);
+    expect(nw.fxRates[0]).toMatchObject({ from: "EUR", to: "USD", rate: 1.1 });
+
+    clearFxCache();
+    vi.stubGlobal("fetch", async () => new Response("{}", { status: 503 }));
+    const nw2 = await netWorthNow(user.id, "USD");
+    expect(nw2.netWorthCents).toBe(100000);
+    expect(nw2.excludedForeignCurrency).toBe(1);
+    vi.unstubAllGlobals();
   });
 });
 

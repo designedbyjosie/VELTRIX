@@ -39,10 +39,20 @@ export interface Bar {
 
 export type HistoryRange = "1M" | "3M" | "6M" | "1Y" | "5Y";
 
+export interface NewsItem {
+  headline: string;
+  summary: string | null;
+  source: string;
+  url: string;
+  publishedAt: string;
+}
+
 export interface MarketDataProvider {
   id: string;
   label: string;
   isDemo: boolean;
+  /** Recent company news, when the provider offers it. */
+  news?(symbol: string, days?: number): Promise<NewsItem[]>;
   search(query: string): Promise<InstrumentInfo[]>;
   profile(symbol: string): Promise<InstrumentInfo | null>;
   quote(symbol: string): Promise<Quote | null>;
@@ -266,10 +276,166 @@ export class AlphaVantageProvider implements MarketDataProvider {
   }
 }
 
+// ------------------------------------------------------------------ not configured
+
+/** Used when no market data provider is configured: no prices are shown, never simulated ones. */
+export class NoMarketData implements MarketDataProvider {
+  id = "none";
+  label = "No market data provider configured";
+  isDemo = false;
+  async search() {
+    return [];
+  }
+  async profile() {
+    return null;
+  }
+  async quote() {
+    return null;
+  }
+  async history() {
+    return [];
+  }
+}
+
+// ------------------------------------------------------------------ Finnhub
+
+type Fetch = typeof fetch;
+
+/**
+ * Finnhub adapter (https://finnhub.io). Requires FINNHUB_API_KEY; the free tier covers
+ * quotes, symbol search, company profiles and company news (60 calls/minute). Daily
+ * price history (candles) is a paid feature — when it's unavailable, history comes
+ * from the optional fallback provider (Alpha Vantage) or is reported as unavailable.
+ * The key is sent in a header, never in URLs. Check Finnhub's terms for commercial use.
+ */
+export class FinnhubProvider implements MarketDataProvider {
+  id = "finnhub";
+  label = "Finnhub (real-time to 15-min delayed, depending on exchange)";
+  isDemo = false;
+  private candlesUnavailable = false;
+  constructor(
+    private apiKey: string,
+    private historyFallback: MarketDataProvider | null = null,
+    private fetchImpl: Fetch = fetch,
+  ) {}
+
+  private async call<T>(path: string, params: Record<string, string>): Promise<T | null> {
+    const url = new URL(`https://finnhub.io/api/v1${path}`);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    const res = await this.fetchImpl(url, { headers: { "X-Finnhub-Token": this.apiKey }, signal: AbortSignal.timeout(8000) });
+    if (res.status === 401 || res.status === 403) {
+      if (path === "/stock/candle") this.candlesUnavailable = true;
+      return null;
+    }
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  }
+
+  async search(query: string) {
+    const q = query.trim();
+    if (!q) return [];
+    return cached(`fh:s:${q.toLowerCase()}`, 3_600_000, async () => {
+      const d = await this.call<{ result?: { symbol: string; description: string; type: string; displaySymbol: string }[] }>("/search", { q });
+      return (d?.result ?? [])
+        .filter((r) => r.symbol && !r.symbol.includes(".") && /^[A-Z][A-Z0-9.\-]{0,9}$/.test(r.symbol))
+        .slice(0, 10)
+        .map((r) => ({
+          symbol: r.symbol,
+          name: r.description || r.symbol,
+          type: (/ETF|ETP/i.test(r.type) ? "ETF" : /fund/i.test(r.type) ? "FUND" : /stock|equity|adr/i.test(r.type) ? "STOCK" : "OTHER") as InstrumentKind,
+          exchange: "",
+          currency: "USD",
+          sector: null,
+          description: null,
+        }));
+    });
+  }
+
+  async profile(symbol: string) {
+    return cached(`fh:p:${symbol}`, 86_400_000, async () => {
+      const d = await this.call<{ name?: string; ticker?: string; exchange?: string; currency?: string; finnhubIndustry?: string; weburl?: string }>("/stock/profile2", { symbol });
+      if (d?.name) {
+        return {
+          symbol,
+          name: d.name,
+          type: "STOCK" as InstrumentKind,
+          exchange: d.exchange ?? "",
+          currency: d.currency ?? "USD",
+          sector: d.finnhubIndustry || null,
+          description: null,
+        };
+      }
+      // ETFs and funds have no free profile; fall back to the symbol search listing.
+      const hit = (await this.search(symbol)).find((r) => r.symbol === symbol);
+      return hit ?? null;
+    });
+  }
+
+  async quote(symbol: string) {
+    return cached(`fh:q:${symbol}`, 60_000, async () => {
+      const d = await this.call<{ c?: number; pc?: number; dp?: number | null; t?: number }>("/quote", { symbol });
+      // Unknown symbols come back as all zeros.
+      if (!d || !d.c || !d.t) return null;
+      return {
+        symbol,
+        price: d.c,
+        currency: "USD",
+        previousClose: d.pc || null,
+        changePercent: typeof d.dp === "number" ? Math.round(d.dp * 100) / 100 : null,
+        asOf: new Date(d.t * 1000).toISOString(),
+        delayed: true,
+        source: "Finnhub",
+        isDemo: false,
+      } satisfies Quote;
+    });
+  }
+
+  async history(symbol: string, range: HistoryRange) {
+    return cached(`fh:h:${symbol}:${range}`, 3_600_000, async () => {
+      if (!this.candlesUnavailable) {
+        const to = Math.floor(Date.now() / 1000);
+        const from = to - RANGE_DAYS[range] * 86_400;
+        const d = await this.call<{ s?: string; c?: number[]; t?: number[] }>("/stock/candle", { symbol, resolution: "D", from: String(from), to: String(to) });
+        if (d?.s === "ok" && d.c && d.t) return d.t.map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), close: d.c![i] }));
+      }
+      return this.historyFallback ? this.historyFallback.history(symbol, range) : [];
+    });
+  }
+
+  async news(symbol: string, days = 7) {
+    return cached(`fh:n:${symbol}:${days}`, 1_800_000, async () => {
+      const to = new Date();
+      const from = new Date(Date.now() - days * 86_400_000);
+      const d = await this.call<{ headline?: string; summary?: string; source?: string; url?: string; datetime?: number }[]>("/company-news", {
+        symbol,
+        from: from.toISOString().slice(0, 10),
+        to: to.toISOString().slice(0, 10),
+      });
+      return (Array.isArray(d) ? d : [])
+        .filter((n) => n.headline && n.url && /^https?:\/\//.test(n.url))
+        .slice(0, 8)
+        .map((n) => ({ headline: n.headline!.slice(0, 240), summary: n.summary ? n.summary.slice(0, 400) : null, source: n.source ?? "Unknown", url: n.url!, publishedAt: new Date((n.datetime ?? 0) * 1000).toISOString() }));
+    });
+  }
+}
+
 let provider: MarketDataProvider | null = null;
 export function marketData(): MarketDataProvider {
   if (provider) return provider;
-  provider = env.market.provider === "alphavantage" && env.market.alphaVantageKey ? new AlphaVantageProvider(env.market.alphaVantageKey) : new DemoMarketProvider();
+  const av = env.market.alphaVantageKey ? new AlphaVantageProvider(env.market.alphaVantageKey) : null;
+  switch (env.market.provider) {
+    case "finnhub":
+      provider = env.market.finnhubKey ? new FinnhubProvider(env.market.finnhubKey, av) : new NoMarketData();
+      break;
+    case "alphavantage":
+      provider = av ?? new NoMarketData();
+      break;
+    case "demo":
+      provider = new DemoMarketProvider();
+      break;
+    default:
+      provider = new NoMarketData();
+  }
   return provider;
 }
 

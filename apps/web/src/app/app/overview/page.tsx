@@ -42,7 +42,11 @@ export default async function OverviewPage() {
           ) : (
             <EmptyState title="History builds as you update balances" body="Each balance update records a point in time, so your net worth trend appears after the second update." />
           )}
-          <p className="mt-2 text-[11px] text-ink3">Net worth = assets − liabilities. Liabilities are entered as the amount owed.{nw.excludedForeignCurrency ? ` ${nw.excludedForeignCurrency} foreign-currency account(s) are excluded because no exchange-rate provider is configured.` : ""}</p>
+          <p className="mt-2 text-[11px] text-ink3">
+            Net worth = assets − liabilities. Liabilities are entered as the amount owed.
+            {nw.fxRates.length > 0 && ` Converted to ${user.baseCurrency}: ${nw.fxRates.map((r) => `1 ${r.from} = ${r.rate} ${r.to}`).join(", ")} (ECB reference rate, ${nw.fxRates[0].asOf}).`}
+            {nw.excludedForeignCurrency ? ` ${nw.excludedForeignCurrency} foreign-currency account(s) are excluded because no exchange rate was available.` : ""} The trend chart covers ${user.baseCurrency} accounts.
+          </p>
         </Card>
         <div className="space-y-4">
           <Card title="By account type">

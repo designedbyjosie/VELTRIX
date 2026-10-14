@@ -4,6 +4,7 @@
  */
 import { env } from "../env";
 import { marketData } from "./market";
+import { mailConfigured } from "../mail";
 
 export interface IntegrationStatus {
   id: string;
@@ -28,28 +29,36 @@ export function integrationStatuses(): IntegrationStatus[] {
     {
       id: "market",
       name: "Market data",
-      purpose: "Quotes, price history and company profiles.",
-      configured: !md.isDemo,
-      mode: md.label,
-      envVars: ["MARKET_DATA_PROVIDER", "ALPHA_VANTAGE_API_KEY"],
+      purpose: "Live quotes, symbol search, company profiles and company news.",
+      configured: md.id !== "none" && !md.isDemo,
+      mode: md.id === "none" ? "Not configured — no prices are shown" : md.label,
+      envVars: ["FINNHUB_API_KEY", "ALPHA_VANTAGE_API_KEY (optional, price history)"],
     },
     {
       id: "aggregator",
-      name: "Bank account aggregation",
-      purpose: "Securely connect bank accounts through a provider's official consent flow.",
-      configured: false,
-      mode: "Not configured — add accounts manually or import CSV files",
-      envVars: ["AGGREGATOR_PROVIDER", "PLAID_CLIENT_ID", "PLAID_SECRET"],
+      name: "Bank connections (Plaid)",
+      purpose: "Securely link bank, card, loan and investment accounts through Plaid's official consent flow.",
+      configured: !!(env.plaid.clientId && env.plaid.secret),
+      mode: env.plaid.clientId && env.plaid.secret ? `Plaid ${env.plaid.env}` : "Not configured — add accounts manually or import CSV files",
+      envVars: ["PLAID_CLIENT_ID", "PLAID_SECRET", "PLAID_ENV"],
     },
     {
       id: "fx",
       name: "Currency exchange rates",
-      purpose: "Convert foreign-currency balances and trip costs.",
+      purpose: "Convert foreign-currency balances into your base currency.",
       configured: env.fx.provider !== "none",
-      mode: env.fx.provider === "frankfurter" ? "Frankfurter (ECB reference rates)" : "Not configured — foreign-currency accounts are shown separately",
+      mode: env.fx.provider === "frankfurter" ? "European Central Bank reference rates (via Frankfurter)" : "Turned off — foreign-currency accounts are shown separately",
       envVars: ["FX_PROVIDER"],
     },
-    { id: "news", name: "Financial news", purpose: "Headlines related to your watchlist.", configured: false, mode: "Not configured — save articles with the browser extension", envVars: ["NEWS_PROVIDER", "NEWS_API_KEY"] },
+    {
+      id: "email",
+      name: "Email",
+      purpose: "Account confirmation, password resets and security alerts.",
+      configured: mailConfigured(),
+      mode: mailConfigured() ? `SMTP via ${env.mail.host}` : "Not configured — emails are printed to the server log (development only)",
+      envVars: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"],
+    },
+    { id: "news", name: "Financial news", purpose: "Company headlines on instrument pages.", configured: md.id === "finnhub", mode: md.id === "finnhub" ? "Finnhub company news" : "Comes with Finnhub market data; save articles with the extension meanwhile", envVars: ["FINNHUB_API_KEY"] },
     { id: "prices", name: "Product price feeds", purpose: "Verified price comparisons across merchants.", configured: false, mode: "Not configured — uses prices you've observed with the extension", envVars: ["PRICE_FEED_PROVIDER"] },
     { id: "travel", name: "Travel pricing", purpose: "Live flight and hotel prices.", configured: false, mode: "Not configured — track trips and quotes manually or via the extension", envVars: ["TRAVEL_PROVIDER"] },
   ];
