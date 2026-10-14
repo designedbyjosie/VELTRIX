@@ -3,7 +3,7 @@
 1. **Database (Neon).** Create a project at https://neon.tech. In **Connect**, turn **Connection pooling off** and copy the connection string (`postgresql://…?sslmode=require`). Migrations need this direct connection.
 2. **Website (Vercel).** At https://vercel.com, choose **Add New → Project**, import the GitHub repository and set **Root Directory** to `apps/web`. Add these environment variables:
    - `DATABASE_URL`: the Neon connection string
-   - `APP_URL`: `https://<your-project>.vercel.app` (update it after the first deploy if the name differs)
+   - `APP_URL` (optional on Vercel): your public address, e.g. `https://<your-project>.vercel.app` or your own domain. Email links use it. If it's missing or still `localhost`, VELTRIX uses the production domain Vercel provides
    - `CRON_SECRET`: a random string of 16+ characters, for the daily job in `vercel.json`
    - `ENCRYPTION_KEY`: output of `openssl rand -base64 32`. Keep a copy; changing it later breaks linked banks and 2FA
    - `SMTP_USER` and `SMTP_PASS`: needed for sign-up verification and password resets. With Gmail: turn on 2-Step Verification, create an App Password at https://myaccount.google.com/apppasswords, then set `SMTP_USER` to your Gmail address and `SMTP_PASS` to the app password. The server (`smtp.gmail.com`) and sender are filled in automatically; set `SMTP_HOST` / `EMAIL_FROM` only for other providers or a custom sender. After adding variables, **redeploy**: Vercel only applies them to new deployments. Settings → Integrations in the app shows whether email is configured and which setting is missing

@@ -10,6 +10,25 @@ function optional(name: string): string | null {
   return v ? v : null;
 }
 
+const isLocalUrl = (u: string) => /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/|$)/i.test(u);
+function withScheme(u: string) {
+  const v = /^https?:\/\//i.test(u) ? u : `${isLocalUrl(`http://${u}`) ? "http" : "https"}://${u}`;
+  return v.replace(/\/+$/, "");
+}
+
+/**
+ * Public address used in email links and the CSRF origin check. APP_URL wins, except
+ * that a localhost value is ignored on Vercel, where the production domain Vercel
+ * provides (VERCEL_PROJECT_PRODUCTION_URL) is used instead.
+ */
+function resolveAppUrl() {
+  const configured = optional("APP_URL");
+  const vercelHost = optional("VERCEL_PROJECT_PRODUCTION_URL") ?? optional("VERCEL_URL");
+  const vercel = vercelHost ? withScheme(vercelHost) : null;
+  if (configured && !(vercel && isLocalUrl(withScheme(configured)))) return withScheme(configured);
+  return vercel ?? "http://localhost:3000";
+}
+
 const first = (...names: string[]) => names.map(optional).find((v) => v !== null) ?? null;
 
 const KNOWN_SMTP_HOSTS: Record<string, string> = {
@@ -41,7 +60,7 @@ function mailSettings() {
 }
 
 export const env = {
-  appUrl: optional("APP_URL") ?? "http://localhost:3000",
+  appUrl: resolveAppUrl(),
   /** 32-byte key (base64) for encrypting secrets at rest: two-factor secrets and bank-connection tokens. */
   encryptionKey: optional("ENCRYPTION_KEY"),
   requireEmailVerification: (optional("REQUIRE_EMAIL_VERIFICATION") ?? "true") !== "false",
