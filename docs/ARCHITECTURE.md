@@ -104,6 +104,29 @@ static/manifest.template.json   host permission = VELTRIX_API_URL origin (set at
 
 `providers/market.ts` defines `MarketDataProvider` (`search`, `profile`, `quote`, `history`):
 
-- **DemoMarketProvider** produces a deterministic simulated series per symbol. It is labeled demo everywhere — quote badges, chart cards, advisor tool notes, extension disclaimers.
+- **FinnhubProvider** (default when `FINNHUB_API_KEY` is set) serves quotes, symbol search, company profiles, company news and candles. When the plan doesn't include candles it falls back to Alpha Vantage history if a key is set. The key travels in a header, never in a URL.
+- **NoMarketData** is the default without a key: prices are reported unavailable rather than simulated.
 - **AlphaVantageProvider** maps the provider's endpoints defensively and caches responses.
+- **DemoMarketProvider** (simulated, labeled demo) is used only when explicitly selected, e.g. by the test suite.
+
+## Exchange rates
+
+`providers/fx.ts` fetches ECB reference rates from Frankfurter (no key) and caches them. Net worth converts foreign-currency balances into the user's base currency and shows the rates used.
+
+## Bank connections (Plaid)
+
+`providers/plaid.ts` is a thin client for `/link/token/create`, `/item/public_token/exchange`, `/accounts/get`, `/transactions/sync` and `/item/remove`; credentials go in headers. `services/banking.ts`:
+
+- The browser opens Plaid Link with a short-lived link token; VELTRIX never sees bank credentials. The returned public token is exchanged server-side and the access token is stored encrypted (AES-256-GCM, `ENCRYPTION_KEY`).
+- Sync follows the `/transactions/sync` cursor: added rows are inserted idempotently (`plaid:<transaction_id>` dedupe hash), modified rows update amounts but keep categories the user chose, removed rows are deleted, and pending transactions are skipped until they post.
+- `ITEM_LOGIN_REQUIRED` marks the item for reconnection, which reopens Link in update mode.
+- Disconnecting calls `/item/remove` and deletes the linked accounts and their transactions.
+
+## Account security
+
+- **Email verification:** sessions of unverified users are rejected (403 `email_unverified`) everywhere except logout and verification routes. Links are single-use hashed tokens valid for 24 hours.
+- **Password reset:** single-use token valid for 1 hour; responses never reveal whether an email is registered; a reset signs out every session and sends an alert.
+- **Two-factor (TOTP, RFC 6238):** secrets encrypted at rest, ±1 step tolerance, replay of a used step refused, 10 hashed single-use recovery codes. Login with 2FA issues a 5-minute challenge cookie (`vx_mfa`) with at most 5 attempts.
+- **Lockout:** 10 failed passwords lock the account for 15 minutes. Passwords need 10+ characters and are checked against a common-password list.
+- **Rate limits** live in PostgreSQL (`RateLimitBucket`, one atomic upsert per hit), so they hold across serverless instances.
 - Instruments unknown to the provider can still be watchlisted, and are marked unverified.
