@@ -24,8 +24,8 @@ const DOCS: Record<string, { title: string; body: { h: string; p: string }[] }> 
   disclosures: {
     title: "Disclosures",
     body: [
-      { h: "Demo data", p: "Demo records are illustrative and tagged as demo data wherever they appear." },
-      { h: "Market data", p: "Without a configured provider, prices are simulated by VELTRIX for demonstration and are not real market quotes." },
+      { h: "Bank data", p: "Bank connections are provided by Plaid. VELTRIX receives read-only access to balances and transactions; it cannot move money, and access tokens are encrypted at rest." },
+      { h: "Market data", p: "Quotes and company news come from third-party providers (Finnhub), may be delayed depending on the exchange, and are shown with their source and time. Past performance does not predict future results." },
       { h: "Deals and rewards", p: "A deal is marked Verified only when VELTRIX itself recorded both prices. Coupons and cashback you add are not verified. Point values use the rate you enter." },
     ],
   },

@@ -18,9 +18,9 @@ const FEATURES = [
 ];
 
 const FAQ = [
-  { q: "Does VELTRIX need my bank password?", a: "No. You can add accounts manually and import CSV statements. Automatic bank connections require an account-aggregation provider's official consent flow, which VELTRIX would use instead of ever asking for your credentials." },
+  { q: "Does VELTRIX need my bank password?", a: "No. Bank connections go through Plaid: you sign in to your bank in Plaid's secure window, and VELTRIX only receives read access to balances and transactions — never your password, and it can't move money. You can also add accounts manually or import CSV statements." },
   { q: "Is this financial advice?", a: "No. VELTRIX provides information, calculations and research tools. It doesn't guarantee returns, place trades or make decisions for you." },
-  { q: "Where do the numbers come from?", a: "Totals, budgets, projections and comparisons are calculated by VELTRIX from your records. Market prices come from the configured data provider, and demo data is always labeled as demo data." },
+  { q: "Where do the numbers come from?", a: "Totals, budgets, projections and comparisons are calculated by VELTRIX from your records. Market prices and company news come from a market-data provider, with the source and time shown next to each figure." },
   { q: "What does the browser extension read?", a: "Only when you open it, and only the page you're on: public product, article or ticker information such as titles and listed prices. It never reads form fields, passwords or payment details, and it skips checkout, login and banking pages." },
   { q: "How does the AI work without seeing all my data?", a: "The advisor can only call specific tools that return your own records, calculated by the app. Sending data to an AI provider is off until you allow it in Settings; without it, a built-in deterministic engine answers supported questions." },
   { q: "Can I export or delete my data?", a: "Yes. Export everything as JSON or your transactions as CSV from Settings, and delete your account permanently at any time." },
@@ -148,7 +148,7 @@ export default async function LandingPage() {
           <h2 className="font-display text-3xl font-semibold tracking-tight">How it works</h2>
           <ol className="mt-6 space-y-4">
             {[
-              ["Connect your accounts or add financial information.", "Add balances, import bank CSVs, or start with labeled demo data."],
+              ["Connect your accounts or add financial information.", "Link your bank securely through Plaid, import CSV statements, or add balances yourself."],
               ["Let VELTRIX organize and analyze your data.", "Transactions are categorized with transparent rules you can override."],
               ["Discover personalized insights and opportunities.", "Recurring costs, budgets near their limits, goals off track, real price drops."],
               ["Make informed decisions and track your progress.", "Reports, goals and the advisor keep the picture current."],
@@ -199,7 +199,7 @@ export default async function LandingPage() {
             <p className="font-semibold">Free</p>
             <p className="num mt-2 font-display text-4xl font-semibold">$0</p>
             <ul className="mt-5 space-y-2 text-sm text-ink2">
-              {["Accounts, transactions, budgets, goals and reports", "CSV import with duplicate detection", "Watchlists, alerts and research tools", "Browser extension and wishlist price tracking", "AI advisor (built-in analysis; language model when configured)"].map((x) => (
+              {["Accounts, transactions, budgets, goals and reports", "Secure bank connections through Plaid", "Live market quotes, company news, watchlists and alerts", "Browser extension and wishlist price tracking", "AI advisor (built-in analysis; language model when configured)"].map((x) => (
                 <li key={x} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-pos" aria-hidden />{x}</li>
               ))}
             </ul>
@@ -211,11 +211,11 @@ export default async function LandingPage() {
             <p className="flex items-center gap-2 font-semibold">Premium <span className="rounded-full border border-line px-2 py-0.5 text-[11px] font-normal text-ink2">Not yet available</span></p>
             <p className="mt-2 font-display text-4xl font-semibold text-ink2">TBA</p>
             <ul className="mt-5 space-y-2 text-sm text-ink2">
-              {["Automatic bank sync through an aggregation provider", "Real-time market data", "Verified merchant price feeds", "Priority support"].map((x) => (
+              {["Verified merchant price feeds", "Longer price and transaction history", "Priority support"].map((x) => (
                 <li key={x} className="flex gap-2"><BadgePercent className="mt-0.5 size-4 shrink-0 text-ink3" aria-hidden />{x}</li>
               ))}
             </ul>
-            <p className="mt-6 text-xs text-ink3">These depend on third-party providers and aren&apos;t part of the current release. There are no paid plans today.</p>
+            <p className="mt-6 text-xs text-ink3">Planned features. There are no paid plans today.</p>
           </div>
         </div>
       </section>

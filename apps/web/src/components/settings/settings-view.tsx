@@ -5,7 +5,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Copy, Download, KeyRound, MonitorSmartphone, Puzzle, ShieldCheck } from "lucide-react";
 import { SUPPORTED_CURRENCIES } from "@veltrix/shared";
 import { Badge, Button, Card, ConfirmButton, DemoBadge, Field, FormError, Input, Modal, Select, useToast } from "@/components/ui";
-import { LoadDemoButton } from "@/components/dashboard/load-demo";
 import { TwoFactorCard } from "./two-factor";
 import { api, ApiError } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
@@ -361,31 +360,29 @@ export function SettingsView({ profile, preference, consents: initialConsents, s
               </a>
             </div>
           </div>
-          <div>
-            <p className="flex items-center gap-2 text-sm font-medium">
-              Demo data <DemoBadge />
-            </p>
-            <p className="mt-1 text-xs text-ink2">{profile.hasDemoData ? "Sample records are loaded and labeled throughout the app." : "Load a year of clearly labeled sample data to explore."}</p>
-            <div className="mt-3">
-              {profile.hasDemoData ? (
+          {profile.hasDemoData && (
+            <div>
+              <p className="flex items-center gap-2 text-sm font-medium">
+                Sample data <DemoBadge />
+              </p>
+              <p className="mt-1 text-xs text-ink2">This account still contains sample records from an earlier version. Remove them to keep only your real information.</p>
+              <div className="mt-3">
                 <ConfirmButton
                   variant="secondary"
-                  title="Remove all demo data?"
-                  body="Only records tagged as demo are deleted. Your own records stay."
-                  confirmLabel="Remove demo data"
+                  title="Remove all sample data?"
+                  body="Only records tagged as sample data are deleted. Your own records stay."
+                  confirmLabel="Remove sample data"
                   onConfirm={async () => {
                     await api("/api/settings/demo", { method: "DELETE" });
-                    toast("Demo data removed");
+                    toast("Sample data removed");
                     router.refresh();
                   }}
                 >
-                  Remove demo data
+                  Remove sample data
                 </ConfirmButton>
-              ) : (
-                <LoadDemoButton />
-              )}
+              </div>
             </div>
-          </div>
+          )}
           <div>
             <p className="text-sm font-medium text-neg">Delete account</p>
             <p className="mt-1 text-xs text-ink2">Permanently deletes your account and all financial records. This can&apos;t be undone.</p>

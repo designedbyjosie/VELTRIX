@@ -11,7 +11,6 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { SpendingCard } from "@/components/dashboard/spending-card";
 import { PerformanceCard } from "@/components/dashboard/performance-card";
 import { AdvisorHighlight, InsightCard } from "@/components/dashboard/insight-card";
-import { LoadDemoButton } from "@/components/dashboard/load-demo";
 import { Card, DemoBadge, EmptyState, LinkButton, Progress } from "@/components/ui";
 import { money, shortDate } from "@/lib/format";
 
@@ -38,7 +37,7 @@ export default async function HomePage() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
-            { icon: Landmark, title: "Add an account", body: "Checking, savings, cards, loans or investments — balances drive your net worth.", href: "/app/overview?new=1", cta: "Add account" },
+            { icon: Landmark, title: "Connect your bank", body: "Link accounts securely through Plaid, or add balances manually. Balances drive your net worth.", href: "/app/overview", cta: "Add accounts" },
             { icon: Upload, title: "Import transactions", body: "Upload a CSV export from your bank. Duplicates are detected automatically.", href: "/app/transactions?import=1", cta: "Import CSV" },
             { icon: Target, title: "Set a goal", body: "Emergency fund, vacation, a home deposit — track progress and the monthly amount needed.", href: "/app/goals?new=1", cta: "Create goal" },
             { icon: Puzzle, title: "Connect the extension", body: "Analyze product pages and save findings to your account while you browse.", href: "/app/settings#extension", cta: "Set up extension" },
@@ -55,17 +54,6 @@ export default async function HomePage() {
             </div>
           ))}
         </div>
-        <Card>
-          <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-            <div>
-              <h2 className="flex items-center gap-2 font-semibold">
-                Explore with demo data <DemoBadge />
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-ink2">Load a year of clearly labeled sample accounts, transactions, goals and holdings to see how VELTRIX works. You can remove it with one click.</p>
-            </div>
-            <LoadDemoButton />
-          </div>
-        </Card>
       </div>
     );
   }

@@ -367,7 +367,7 @@ export function TransactionsView({ categories, accounts, initial }: { categories
               <dt className="text-ink3">Account</dt>
               <dd>{selected.account?.name ?? "—"}</dd>
               <dt className="text-ink3">Source</dt>
-              <dd>{selected.source === "CSV" ? `CSV import (batch ${selected.importBatchId?.slice(-6)})` : selected.source === "DEMO" ? "Demo data" : titleCase(selected.source)}</dd>
+              <dd>{selected.source === "CSV" ? `CSV import (batch ${selected.importBatchId?.slice(-6)})` : selected.source === "AGGREGATOR" ? "Synced from your bank (Plaid)" : selected.source === "DEMO" ? "Sample data" : titleCase(selected.source)}</dd>
               {selected.description && (
                 <>
                   <dt className="text-ink3">Description</dt>

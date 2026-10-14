@@ -8,6 +8,7 @@ import { chromium, expect, test, type BrowserContext } from "@playwright/test";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { markEmailVerified } from "./db";
 
 const EXT = join(__dirname, "..", "..", "extension", "dist");
 
@@ -39,6 +40,7 @@ test.describe("browser extension", () => {
       headers: { origin: "http://localhost:3000" },
     });
     expect(reg.status()).toBe(201);
+    await markEmailVerified(email);
     const codeRes = await page.request.post("http://localhost:3000/api/extension/pairing-code", { data: {}, headers: { origin: "http://localhost:3000" } });
     const { code } = await codeRes.json();
 

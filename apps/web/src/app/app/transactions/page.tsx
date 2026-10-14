@@ -20,7 +20,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   ]);
   return (
     <div className="space-y-5">
-      <PageHeader title="Transactions" description="Every record shows where it came from: entered manually, imported, or demo data." />
+      <PageHeader title="Transactions" description="Every record shows where it came from: synced from your bank, imported from a file, or entered by you." />
       <Suspense>
         <TransactionsView categories={categories} accounts={accounts.map((a) => ({ id: a.id, name: a.name, mask: a.mask }))} initial={initial} />
       </Suspense>
