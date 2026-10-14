@@ -11,6 +11,8 @@ export interface BuiltinAnswer {
   tools: { name: string; label: string; provenance: string[] }[];
 }
 
+// Tool payloads are loosely typed JSON produced by tools.ts.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Data = Record<string, any>;
 
 const TICKER = /\$?\b([A-Z]{1,5})\b/g;

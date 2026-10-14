@@ -92,6 +92,7 @@ export async function instrumentMetrics(sym: string) {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous tool inputs
 export const TOOLS: AdvisorTool<any>[] = [
   {
     name: "get_spending_summary",

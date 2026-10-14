@@ -22,17 +22,19 @@ export const colors = {
 
 /**
  * Categorical chart palette, assigned in fixed order to spending categories.
- * Validated for the dark surface with the dataviz palette validator.
+ * Validated on the #0D1B31 panel surface (dark mode): every slot in the OKLCH
+ * L 0.48–0.67 band, chroma ≥ 0.1, worst adjacent CVD ΔE 10.5. "Other" is a
+ * deliberate neutral. Charts also carry legends/direct labels as secondary encoding.
  */
 export const categoryPalette = [
-  "#2878FF", // housing
-  "#FF9F43", // food
-  "#A47BFF", // shopping
-  "#39D9FF", // transport
-  "#F062C0", // travel
-  "#26D9A0", // entertainment
-  "#E8D44D", // utilities
-  "#6F86A8", // other
+  "#3B82F6", // housing
+  "#D96A26", // food
+  "#1798BD", // shopping
+  "#D55181", // transport
+  "#C98500", // travel
+  "#8F72F0", // entertainment
+  "#16A06C", // utilities
+  "#5D7290", // other (neutral by design)
 ] as const;
 
 export type ColorToken = keyof typeof colors;

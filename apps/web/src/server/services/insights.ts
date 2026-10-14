@@ -17,6 +17,7 @@ import { listRecurring, refreshRecurring } from "./recurring";
 import { listProducts } from "./shopping";
 import { listTrips } from "./travel";
 import { txnsForRange } from "./transactions";
+import { notify } from "./notifications";
 
 export interface InsightDraft {
   kind: string;
@@ -288,6 +289,9 @@ export async function refreshInsights(userId: string, timezone = "UTC", currency
     });
   }
   await db.financialInsight.updateMany({ where: { userId, status: "ACTIVE", dedupeKey: { notIn: keys } }, data: { status: "DONE" } });
+  for (const d of drafts.filter((x) => x.kind === "budget" || x.kind === "goal")) {
+    await notify(userId, { kind: d.kind, dedupeKey: `insight:${d.dedupeKey}`, title: d.title, body: d.summary, link: d.actionHref });
+  }
 }
 
 export async function listInsights(userId: string, limit = 20) {

@@ -2,7 +2,8 @@ import { resetRateLimits } from "@/server/rate-limit";
 
 export const BASE = "http://localhost:3000";
 
-type Handler = (req: Request, ctx?: { params: Promise<Record<string, string>> }) => Promise<Response>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Handler = (req: Request, ctx: { params: Promise<any> }) => Promise<Response>;
 
 export interface CallOpts {
   method?: string;
@@ -25,6 +26,7 @@ export async function call(fn: Handler, path: string, opts: CallOpts = {}) {
   if (opts.origin !== null && method !== "GET") headers.origin = opts.origin ?? BASE;
   const res = await fn(new Request(url, { method, headers, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined }), { params: Promise.resolve(opts.params ?? {}) });
   const text = await res.text();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let json: any = null;
   try {
     json = JSON.parse(text);

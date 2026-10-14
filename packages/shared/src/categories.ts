@@ -14,16 +14,16 @@ export interface SystemCategory {
 }
 
 export const SYSTEM_CATEGORIES: SystemCategory[] = [
-  { slug: "housing", name: "Housing", kind: "EXPENSE", color: "#2878FF", icon: "home" },
-  { slug: "food", name: "Food & Dining", kind: "EXPENSE", color: "#FF9F43", icon: "utensils" },
-  { slug: "shopping", name: "Shopping", kind: "EXPENSE", color: "#A47BFF", icon: "shopping-bag" },
-  { slug: "transport", name: "Transportation", kind: "EXPENSE", color: "#39D9FF", icon: "car" },
-  { slug: "travel", name: "Travel", kind: "EXPENSE", color: "#F062C0", icon: "plane" },
-  { slug: "entertainment", name: "Entertainment", kind: "EXPENSE", color: "#26D9A0", icon: "clapperboard" },
-  { slug: "utilities", name: "Utilities", kind: "EXPENSE", color: "#E8D44D", icon: "zap" },
-  { slug: "health", name: "Health", kind: "EXPENSE", color: "#6F86A8", icon: "heart-pulse" },
-  { slug: "subscriptions", name: "Subscriptions", kind: "EXPENSE", color: "#6F86A8", icon: "repeat" },
-  { slug: "other", name: "Other", kind: "EXPENSE", color: "#6F86A8", icon: "circle-dot" },
+  { slug: "housing", name: "Housing", kind: "EXPENSE", color: "#3B82F6", icon: "home" },
+  { slug: "food", name: "Food & Dining", kind: "EXPENSE", color: "#D96A26", icon: "utensils" },
+  { slug: "shopping", name: "Shopping", kind: "EXPENSE", color: "#1798BD", icon: "shopping-bag" },
+  { slug: "transport", name: "Transportation", kind: "EXPENSE", color: "#D55181", icon: "car" },
+  { slug: "travel", name: "Travel", kind: "EXPENSE", color: "#C98500", icon: "plane" },
+  { slug: "entertainment", name: "Entertainment", kind: "EXPENSE", color: "#8F72F0", icon: "clapperboard" },
+  { slug: "utilities", name: "Utilities", kind: "EXPENSE", color: "#16A06C", icon: "zap" },
+  { slug: "health", name: "Health", kind: "EXPENSE", color: "#5D7290", icon: "heart-pulse" },
+  { slug: "subscriptions", name: "Subscriptions", kind: "EXPENSE", color: "#5D7290", icon: "repeat" },
+  { slug: "other", name: "Other", kind: "EXPENSE", color: "#5D7290", icon: "circle-dot" },
   { slug: "income", name: "Income", kind: "INCOME", color: "#26D9A0", icon: "wallet" },
   { slug: "transfer", name: "Transfers", kind: "TRANSFER", color: "#647896", icon: "arrow-left-right" },
 ];

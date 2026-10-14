@@ -103,7 +103,7 @@ export function handler<B = undefined, Q = undefined, P = Record<string, string>
   opts: HandlerOptions<B, Q>,
   fn: (ctx: HandlerContext<B, Q, P>) => Promise<Response | unknown>,
 ) {
-  return async (req: Request, route?: RouteParams<P>): Promise<Response> => {
+  return async (req: Request, route: RouteParams<P>): Promise<Response> => {
     try {
       const ip = clientIp(req);
       const userAgent = req.headers.get("user-agent");

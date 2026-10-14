@@ -1,7 +1,15 @@
 import { db } from "../db";
 import { notFound } from "../errors";
 
+const PREF_FOR_KIND: Record<string, "notifyBudget" | "notifyPriceDrops" | "notifyGoals"> = { budget: "notifyBudget", price_drop: "notifyPriceDrops", goal: "notifyGoals" };
+
+/** Create a notification once per dedupe key, respecting the user's notification preferences. */
 export async function notify(userId: string, n: { kind: string; title: string; body: string; link?: string; dedupeKey: string }) {
+  const pref = PREF_FOR_KIND[n.kind];
+  if (pref) {
+    const p = await db.userPreference.findUnique({ where: { userId } });
+    if (p && p[pref] === false) return;
+  }
   await db.notification.upsert({
     where: { userId_dedupeKey: { userId, dedupeKey: n.dedupeKey } },
     create: { userId, kind: n.kind, title: n.title, body: n.body, link: n.link, dedupeKey: n.dedupeKey },

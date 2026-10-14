@@ -58,7 +58,7 @@ export async function extensionMe(userId: string) {
 
 const DISCLAIMER = "Information and research only — not financial advice.";
 
-export async function analyzePage(userId: string, page: PageExtractionInput, timezone = "UTC", baseCurrency = "USD"): Promise<ExtensionAnalysis> {
+export async function analyzePage(userId: string, page: PageExtractionInput, timezone = "UTC"): Promise<ExtensionAnalysis> {
   const insights: InsightLine[] = [];
   const disclaimers = [DISCLAIMER];
   const generatedAt = new Date().toISOString();

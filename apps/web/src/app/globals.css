@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* VELTRIX design tokens — mirrored from packages/shared/src/tokens.ts */
+@theme {
+  --color-bg: #050b18;
+  --color-bg2: #091426;
+  --color-panel: #0d1b31;
+  --color-panel-hi: #112340;
+  --color-line: #19365a;
+  --color-line-soft: #132a47;
+  --color-blue: #2878ff;
+  --color-violet: #7954ff;
+  --color-cyan: #39d9ff;
+  --color-pos: #26d9a0;
+  --color-neg: #ff647c;
+  --color-warn: #ffb547;
+  --color-ink: #f4f7ff;
+  --color-ink2: #94a7c5;
+  --color-ink3: #647896;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sora), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 18px;
+  --radius-inner: 12px;
+  --radius-control: 10px;
+
+  --animate-rise: rise 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@layer base {
+  html { color-scheme: dark; }
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: color-mix(in oklab, var(--color-blue) 45%, transparent); }
+  :focus-visible { outline: 2px solid var(--color-cyan); outline-offset: 2px; border-radius: 6px; }
+  input, select, textarea, button { font: inherit; }
+}
+
+@layer components {
+  /* Elevated card: thin blue border, faint top light, understated depth. */
+  .panel {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--color-panel-hi) 70%, transparent), transparent 120px),
+      var(--color-panel);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 20px 40px -24px rgb(0 0 0 / 0.6);
+  }
+  .panel-inner {
+    background: color-mix(in oklab, var(--color-bg2) 80%, var(--color-panel));
+    border: 1px solid var(--color-line-soft);
+    border-radius: var(--radius-inner);
+  }
+  /* Glass treatment reserved for floating surfaces (menus, dialogs, the extension popup preview). */
+  .glass {
+    background: color-mix(in oklab, var(--color-panel) 78%, transparent);
+    backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid color-mix(in oklab, var(--color-line) 80%, var(--color-cyan) 20%);
+  }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+  .brand-gradient { background-image: linear-gradient(100deg, var(--color-blue), var(--color-violet)); }
+  .text-brand-gradient {
+    background-image: linear-gradient(100deg, #7fb2ff, var(--color-cyan) 40%, #b7a3ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .wordmark { font-family: var(--font-display); letter-spacing: 0.32em; font-weight: 300; }
+  .eyebrow { color: var(--color-ink3); font-size: 12px; font-weight: 500; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+}

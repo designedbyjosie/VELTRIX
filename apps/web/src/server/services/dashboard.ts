@@ -109,7 +109,7 @@ export async function dashboardSummary(userId: string, timezone = "UTC", baseCur
       cents: spendNow,
       previousCents: spendPrev,
       changePercent: percentChange(spendNow, spendPrev),
-      comparisonLabel: `vs. ${day} days last month`,
+      comparisonLabel: `vs. first ${day} days of last month`,
       incomeCents: totalIncome(thisMonth),
     },
     savings: {

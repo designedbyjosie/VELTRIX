@@ -9,6 +9,9 @@ export async function ensureSystemCategories() {
   if (ensured) return;
   for (const c of SYSTEM_CATEGORIES) {
     const existing = await db.transactionCategory.findFirst({ where: { userId: null, slug: c.slug } });
+    if (existing && (existing.color !== c.color || existing.name !== c.name || existing.icon !== c.icon)) {
+      await db.transactionCategory.update({ where: { id: existing.id }, data: { color: c.color, name: c.name, icon: c.icon } });
+    }
     if (!existing) {
       await db.transactionCategory
         .create({ data: { slug: c.slug, name: c.name, kind: c.kind, color: c.color, icon: c.icon } })
