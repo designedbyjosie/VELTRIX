@@ -147,4 +147,23 @@ describe("what-if, decisions, stress tests and saved plans", () => {
     expect((await call(deletePlan, "/x", { cookie: other.cookie, method: "DELETE", params: { id } })).status).toBe(404);
     expect(await db.planSnapshot.count({ where: { id } })).toBe(1);
   });
+
+  it("compares a plan from earlier months with actual balances and spending", async () => {
+    const u = await plannedUser();
+    const s = await call(savePlan, "/x", { cookie: u.cookie, body: { name: "Baseline", kind: "scenario", changes: [], horizonMonths: 12 } });
+    const id = s.json.plan.id;
+    const start = addMonths(thisMonth, -2);
+    await db.planSnapshot.update({ where: { id }, data: { startMonth: start } });
+    const userId = (await db.user.findUniqueOrThrow({ where: { email: u.email } })).id;
+    const checking = await db.connectedAccount.findFirstOrThrow({ where: { userId, name: "Checking" } });
+    await db.accountBalance.create({ data: { userId, accountId: checking.id, asOf: new Date(`${start}-20T00:00:00Z`), balance: "6500" } });
+    await call(createTxn, "/api/transactions", { cookie: u.cookie, body: { date: `${start}-02`, amount: "4000", merchant: "ACME Payroll" } });
+    await call(createTxn, "/api/transactions", { cookie: u.cookie, body: { date: `${start}-05`, amount: "-3100", merchant: "Rent - Oak Apartments" } });
+    const r = (await call(getPlan, "/x", { cookie: u.cookie, params: { id } })).json.plan;
+    expect(r.elapsedMonths).toBe(2);
+    expect(r.rows[0]).toMatchObject({ ym: start, complete: true, actual: { liquidCents: 650000, incomeCents: 400000, spendingCents: 310000 } });
+    const texts = r.findings.map((f: { text: string }) => f.text).join(" | ");
+    expect(texts).toMatch(/Income matched the plan/);
+    expect(texts).toMatch(/Spending averaged \$3,100\.00 a month, \$700\.00 more than planned/);
+  });
 });

@@ -100,6 +100,13 @@ describe("purchase decision", () => {
     expect(d.monthsToSaveFor).toBe(3); // $1,500 / $500 surplus after goal saving
   });
 
+  it("notices slower goal saving even when the goal isn't reached within the period", () => {
+    const longGoal = { ...base, goals: [{ ...base.goals[0], targetCents: 5_000_000, targetMonth: null }] };
+    const d = evaluatePurchase(longGoal, flat, { label: "Laptop", priceCents: 150_000, horizonMonths: 12 }, fmt);
+    expect(d.reasons.find((r) => r.code === "goal_slower")?.text).toMatch(/\$500\.00 less saved/);
+    expect(d.options[0].vsSkip.goalDelays[0]).toMatchObject({ delayMonths: null, endSavedDeltaCents: -50_000 });
+  });
+
   it("flags a goal at risk when cash would fall under one month of essentials", () => {
     const d = evaluatePurchase(base, flat, { label: "Sofa", priceCents: 800_000 }, fmt);
     expect(d.verdict).toBe("risk");

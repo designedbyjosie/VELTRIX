@@ -5,6 +5,7 @@ import {
   ChartLine,
   ChartPie,
   FileChartColumn,
+  FlaskConical,
   House,
   Landmark,
   PiggyBank,
@@ -24,6 +25,7 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { href: "/app", label: "Home", icon: House },
+  { href: "/app/plan", label: "What-if Lab", icon: FlaskConical },
   { href: "/app/overview", label: "Financial Overview", icon: Landmark },
   { href: "/app/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/app/budgets", label: "Budgets", icon: ChartPie },

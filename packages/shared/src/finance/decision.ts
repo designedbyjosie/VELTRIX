@@ -90,7 +90,11 @@ export function evaluatePurchase(baseline: PlanBaseline, assumptions: PlanAssump
   for (const g of now.vsSkip.goalDelays) if (g.becameOffTrack) reasons.push({ code: "goal_off_track", severity: "risk", text: `"${g.name}" would no longer be reached by its target date.` });
 
   // Consider alternatives
-  for (const g of now.vsSkip.goalDelays) if (!g.becameOffTrack && g.delayMonths !== null && g.delayMonths >= 1) reasons.push({ code: "goal_delayed", severity: "consider", text: `"${g.name}" would be reached about ${g.delayMonths} month${g.delayMonths === 1 ? "" : "s"} later.` });
+  for (const g of now.vsSkip.goalDelays) {
+    if (g.becameOffTrack) continue;
+    if (g.delayMonths !== null && g.delayMonths >= 1) reasons.push({ code: "goal_delayed", severity: "consider", text: `"${g.name}" would be reached about ${g.delayMonths} month${g.delayMonths === 1 ? "" : "s"} later.` });
+    else if (g.delayMonths === null && g.endSavedDeltaCents < 0) reasons.push({ code: "goal_slower", severity: "consider", text: `"${g.name}" would have ${fmt(-g.endSavedDeltaCents)} less saved by the end of the ${horizon}-month plan.` });
+  }
   if (input.categoryRemainingCents !== undefined && input.categoryRemainingCents !== null && input.priceCents > input.categoryRemainingCents) {
     reasons.push({ code: "over_category_budget", severity: "consider", text: `It's more than what's left in this category's budget this month (${fmt(Math.max(0, input.categoryRemainingCents))}).` });
   }

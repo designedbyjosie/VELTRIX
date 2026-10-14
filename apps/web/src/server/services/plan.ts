@@ -242,10 +242,12 @@ export async function comparePlanWithActual(userId: string, id: string, ctx: Ctx
     const diff = actualSpend - plannedSpend;
     findings.push(Math.abs(diff) <= plannedSpend * 0.05 ? { kind: "accurate", text: `Spending matched the plan (${fmt(actualSpend)} a month).` } : { kind: "differs", text: `Spending averaged ${fmt(actualSpend)} a month, ${fmt(Math.abs(diff))} ${diff > 0 ? "more" : "less"} than planned.` });
   }
-  const last = rows[rows.length - 1];
-  if (last && last.actual.liquidCents !== null) {
-    const diff = last.actual.liquidCents - last.projected.liquidCents;
-    findings.push({ kind: Math.abs(diff) <= Math.max(10_000, Math.abs(last.projected.liquidCents) * 0.05) ? "accurate" : "differs", text: `Cash is ${fmt(last.actual.liquidCents)} vs ${fmt(last.projected.liquidCents)} projected for ${last.ym}.` });
+  // Cash is judged at the end of a finished month; a month in progress isn't comparable yet.
+  const last = [...rows].reverse().find((r) => r.complete && r.actual.liquidCents !== null);
+  if (last) {
+    const diff = last.actual.liquidCents! - last.projected.liquidCents;
+    const label = new Date(`${last.ym}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+    findings.push({ kind: Math.abs(diff) <= Math.max(10_000, Math.abs(last.projected.liquidCents) * 0.05) ? "accurate" : "differs", text: `Cash at the end of ${label} was ${fmt(last.actual.liquidCents!)} vs ${fmt(last.projected.liquidCents)} projected.` });
   }
 
   // Are the goals still on track? Re-project from today's profile with the same changes still ahead.

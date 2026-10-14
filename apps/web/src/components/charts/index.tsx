@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatMoney } from "@veltrix/shared";
 
 const AXIS = { stroke: "#647896", fontSize: 11, tickLine: false, axisLine: false } as const;
@@ -209,6 +209,51 @@ export function Sparkline({ values, color = "#26D9A0", height = 36 }: { values: 
           <YAxis hide domain={["auto", "auto"]} />
           <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.75} dot={false} isAnimationActive={false} />
         </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export interface ProjectionPoint {
+  label: string;
+  scenario: number;
+  baseline?: number;
+  /** [adverse, best] range for the scenario. */
+  range?: [number, number];
+}
+
+/** Projection over time: scenario line, optional baseline (dashed) and best/adverse band. */
+export function ProjectionChart({ data, currency = "USD", height = 280, scenarioLabel = "Scenario", baselineLabel = "Current plan", threshold }: { data: ProjectionPoint[]; currency?: string; height?: number; scenarioLabel?: string; baselineLabel?: string; threshold?: { value: number; label: string } | null }) {
+  return (
+    <div style={{ height }} role="img" aria-label={`${scenarioLabel} projection chart`}>
+      <ResponsiveContainer>
+        <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="proj-band" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="#7954FF" stopOpacity={0.08} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke={GRID} />
+          <XAxis dataKey="label" {...AXIS} minTickGap={28} />
+          <YAxis {...AXIS} width={60} tickFormatter={(v: number) => formatMoney(v, currency, { compact: true })} domain={["auto", "auto"]} />
+          <ReferenceLine y={0} stroke="rgba(242,95,92,.55)" strokeDasharray="2 4" />
+          {threshold && <ReferenceLine y={threshold.value} stroke="rgba(38,217,160,.45)" strokeDasharray="4 4" label={{ value: threshold.label, fill: "#647896", fontSize: 10, position: "insideTopLeft" }} />}
+          <Tooltip
+            cursor={{ stroke: "rgba(148,167,197,.35)", strokeDasharray: "3 3" }}
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const p = payload[0].payload as ProjectionPoint;
+              const rows = [{ label: scenarioLabel, value: formatMoney(p.scenario, currency), color: "#39D9FF" }];
+              if (p.baseline !== undefined) rows.push({ label: baselineLabel, value: formatMoney(p.baseline, currency), color: "#94A7C5" });
+              if (p.range) rows.push({ label: "Range", value: `${formatMoney(p.range[0], currency, { compact: true })} – ${formatMoney(p.range[1], currency, { compact: true })}`, color: "#7954FF" });
+              return <TooltipBox title={String(label)} rows={rows} />;
+            }}
+          />
+          {data.some((d) => d.range) && <Area type="monotone" dataKey="range" stroke="none" fill="url(#proj-band)" isAnimationActive={false} />}
+          {data.some((d) => d.baseline !== undefined) && <Line type="monotone" dataKey="baseline" stroke="#94A7C5" strokeDasharray="5 5" strokeWidth={1.5} dot={false} isAnimationActive={false} />}
+          <Line type="monotone" dataKey="scenario" stroke="#39D9FF" strokeWidth={2.25} dot={false} isAnimationActive={false} activeDot={{ r: 4, stroke: SURFACE, strokeWidth: 2 }} />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

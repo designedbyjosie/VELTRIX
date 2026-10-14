@@ -274,7 +274,7 @@ export interface PlanComparison {
   lowestLiquidDeltaCents: Cents;
   interestDeltaCents: Cents;
   /** Months later (+) or earlier (−) each goal completes; null when either side doesn't finish in the horizon. */
-  goalDelays: { id: string; name: string; delayMonths: number | null; becameOffTrack: boolean; baselineMonth: number | null; scenarioMonth: number | null }[];
+  goalDelays: { id: string; name: string; delayMonths: number | null; becameOffTrack: boolean; baselineMonth: number | null; scenarioMonth: number | null; endSavedDeltaCents: Cents }[];
   newlyNegative: boolean;
 }
 
@@ -293,6 +293,7 @@ export function comparePlans(base: PlanSummary, alt: PlanSummary): PlanCompariso
         scenarioMonth: a.completionMonth,
         delayMonths: g.completionMonth !== null && a.completionMonth !== null ? a.completionMonth - g.completionMonth : null,
         becameOffTrack: g.onTrack === true && a.onTrack === false,
+        endSavedDeltaCents: a.endSavedCents - g.endSavedCents,
       };
     }),
     newlyNegative: base.firstNegativeMonth === null && alt.firstNegativeMonth !== null,

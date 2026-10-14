@@ -141,7 +141,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={clsx("rounded-[8px] font-medium transition", size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs", value === o.value ? "bg-blue/20 text-ink shadow-[inset_0_0_0_1px_rgba(40,120,255,.5)]" : "text-ink3 hover:text-ink")}
+          className={clsx("whitespace-nowrap rounded-[8px] font-medium transition", size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs", value === o.value ? "bg-blue/20 text-ink shadow-[inset_0_0_0_1px_rgba(40,120,255,.5)]" : "text-ink3 hover:text-ink")}
         >
           {o.label}
         </button>
