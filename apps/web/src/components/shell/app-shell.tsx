@@ -47,7 +47,9 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({ user, children }: { user: ShellUser; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
-  useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    setOpen(false);
+  }, [path]);
   return (
     <div className="min-h-dvh bg-[radial-gradient(1200px_600px_at_70%_-200px,rgba(40,120,255,.12),transparent),radial-gradient(800px_400px_at_0%_100%,rgba(121,84,255,.07),transparent)]">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-panel focus:px-3 focus:py-2">

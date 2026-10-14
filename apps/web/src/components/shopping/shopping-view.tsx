@@ -190,7 +190,9 @@ export function ShoppingView({ products, budget }: { products: ProductView[]; bu
   const [tab, setTab] = useState<"active" | "PURCHASED" | "ARCHIVED">("active");
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(params.get("product"));
-  useEffect(() => setOpenId(params.get("product")), [params]);
+  useEffect(() => {
+    setOpenId(params.get("product"));
+  }, [params]);
   const shown = products.filter((p) => (tab === "active" ? p.status === "WISHLIST" || p.status === "WATCHING" : p.status === tab));
   const open = products.find((p) => p.id === openId) ?? null;
   const close = () => {

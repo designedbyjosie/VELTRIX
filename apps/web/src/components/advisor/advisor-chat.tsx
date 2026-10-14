@@ -68,7 +68,9 @@ export function AdvisorChat({ status, conversations: initialConvos }: { status: 
   const [loadingConvo, setLoadingConvo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [messages, sending]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, sending]);
 
   async function open(id: string) {
     setLoadingConvo(true);
