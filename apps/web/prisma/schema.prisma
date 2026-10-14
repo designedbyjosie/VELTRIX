@@ -1,0 +1,846 @@
+// VELTRIX data model.
+// Conventions:
+//   * Every user-owned row carries userId and is only ever queried with it (see src/server/services).
+//   * Money is Decimal(18,2) with an explicit currency; calculations convert to integer cents.
+//   * Liability balances are stored as the positive amount owed.
+//   * Timestamps are UTC. Calendar dates (transaction dates, goal dates) use @db.Date.
+//   * `source`/`origin` columns make every record traceable (manual, CSV, extension, demo, provider).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  INVESTMENT
+  RETIREMENT
+  LOAN
+  MORTGAGE
+  CASH
+  PROPERTY
+  OTHER_ASSET
+  OTHER_LIABILITY
+}
+
+enum DataOrigin {
+  MANUAL
+  CSV
+  AGGREGATOR
+  EXTENSION
+  PROVIDER
+  SYSTEM
+  DEMO
+}
+
+enum CategoryKind {
+  EXPENSE
+  INCOME
+  TRANSFER
+}
+
+enum CategorySource {
+  RULE
+  USER
+  IMPORT
+  DEFAULT
+}
+
+enum RecurringStatus {
+  SUSPECTED
+  CONFIRMED
+  DISMISSED
+}
+
+enum Frequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  UNKNOWN
+}
+
+enum GoalKind {
+  EMERGENCY_FUND
+  VACATION
+  CAR
+  HOME
+  DEBT
+  RETIREMENT
+  EDUCATION
+  OTHER
+}
+
+enum InstrumentType {
+  STOCK
+  ETF
+  FUND
+  BOND
+  CRYPTO
+  OTHER
+}
+
+enum AlertCondition {
+  ABOVE
+  BELOW
+}
+
+enum AlertStatus {
+  ACTIVE
+  TRIGGERED
+  DISABLED
+}
+
+enum InsightStatus {
+  ACTIVE
+  DISMISSED
+  DONE
+}
+
+enum EstimateType {
+  CONFIRMED
+  POTENTIAL
+  NONE
+}
+
+enum ProductStatus {
+  WISHLIST
+  WATCHING
+  PURCHASED
+  ARCHIVED
+}
+
+enum Verification {
+  VERIFIED
+  UNVERIFIED
+  USER_REPORTED
+  EXPIRED
+}
+
+enum Confidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TripStatus {
+  PLANNING
+  BOOKED
+  COMPLETED
+  CANCELLED
+}
+
+enum TravelExpenseCategory {
+  FLIGHT
+  LODGING
+  CAR
+  FOOD
+  ACTIVITY
+  TRANSPORT
+  OTHER
+}
+
+enum RewardProgramType {
+  AIRLINE
+  HOTEL
+  CARD
+  RETAIL
+  OTHER
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum ConsentPurpose {
+  AI_PROCESSING
+  EXTENSION_PAGE_CONTENT
+  PRICE_TRACKING
+  PRODUCT_EMAILS
+}
+
+// ---------------------------------------------------------------- identity
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile           UserProfile?
+  preference        UserPreference?
+  sessions          Session[]
+  apiTokens         ApiToken[]
+  pairingCodes      PairingCode[]
+  accounts          ConnectedAccount[]
+  balances          AccountBalance[]
+  categories        TransactionCategory[]
+  transactions      Transaction[]
+  importBatches     ImportBatch[]
+  budgets           Budget[]
+  recurringPayments RecurringPayment[]
+  goals             SavingsGoal[]
+  contributions     GoalContribution[]
+  holdings          InvestmentHolding[]
+  snapshots         PortfolioSnapshot[]
+  watchlists        Watchlist[]
+  alerts            MarketAlert[]
+  insights          FinancialInsight[]
+  conversations     AIConversation[]
+  messages          AIMessage[]
+  products          SavedProduct[]
+  priceObservations PriceObservation[]
+  deals             Deal[]
+  articles          SavedArticle[]
+  analyses          BrowserAnalysis[]
+  trips             TravelPlan[]
+  travelExpenses    TravelExpense[]
+  rewardPrograms    RewardProgram[]
+  notifications     Notification[]
+  consents          ConsentRecord[]
+  auditEvents       AuditEvent[]
+}
+
+model UserProfile {
+  userId       String   @id
+  displayName  String
+  baseCurrency String   @default("USD") @db.Char(3)
+  timezone     String   @default("UTC")
+  plan         String   @default("free")
+  hasDemoData  Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserPreference {
+  userId               String   @id
+  notifyBudget         Boolean  @default(true)
+  notifyPriceDrops     Boolean  @default(true)
+  notifyGoals          Boolean  @default(true)
+  extensionAutoAnalyze Boolean  @default(true)
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Browser session. Only a SHA-256 hash of the cookie token is stored.
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Bearer token for the browser extension. Only the hash is stored; scopes limit what it may do.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  prefix     String
+  scopes     String[]
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// One-time, short-lived code used to pair the extension with an account.
+model PairingCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------- accounts & transactions
+
+model ConnectedAccount {
+  id             String      @id @default(cuid())
+  userId         String
+  name           String
+  institution    String      @default("")
+  type           AccountType
+  source         DataOrigin  @default(MANUAL)
+  /// ID at the aggregation provider, when connected through one.
+  externalId     String?
+  mask           String      @default("")
+  currency       String      @default("USD") @db.Char(3)
+  currentBalance Decimal     @db.Decimal(18, 2)
+  balanceAsOf    DateTime    @default(now())
+  archivedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balances     AccountBalance[]
+  transactions Transaction[]
+  holdings     InvestmentHolding[]
+
+  @@unique([userId, source, externalId])
+  @@index([userId])
+}
+
+model AccountBalance {
+  id        String           @id @default(cuid())
+  userId    String
+  accountId String
+  balance   Decimal          @db.Decimal(18, 2)
+  asOf      DateTime         @db.Date
+  source    DataOrigin       @default(MANUAL)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account   ConnectedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, asOf])
+  @@index([userId, asOf])
+}
+
+/// System categories have userId = null; users may add their own.
+model TransactionCategory {
+  id           String             @id @default(cuid())
+  userId       String?
+  slug         String
+  name         String
+  kind         CategoryKind
+  color        String
+  icon         String
+  user         User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgetLines  BudgetCategory[]
+  recurring    RecurringPayment[]
+
+  @@unique([userId, slug])
+}
+
+model Transaction {
+  id             String               @id @default(cuid())
+  userId         String
+  accountId      String?
+  date           DateTime             @db.Date
+  /// Signed: negative = money out, positive = money in.
+  amount         Decimal              @db.Decimal(18, 2)
+  currency       String               @default("USD") @db.Char(3)
+  merchant       String
+  description    String               @default("")
+  notes          String               @default("")
+  categoryId     String?
+  categorySource CategorySource       @default(DEFAULT)
+  source         DataOrigin           @default(MANUAL)
+  importBatchId  String?
+  /// Idempotency key: identical re-imports map to the same hash and are skipped.
+  dedupeHash     String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account        ConnectedAccount?    @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  category       TransactionCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  importBatch    ImportBatch?         @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, dedupeHash])
+  @@index([userId, date])
+  @@index([userId, categoryId])
+  @@index([userId, merchant])
+}
+
+model ImportBatch {
+  id             String        @id @default(cuid())
+  userId         String
+  filename       String
+  accountId      String?
+  rowCount       Int
+  importedCount  Int
+  duplicateCount Int
+  errorCount     Int
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------- budgets, recurring, goals
+
+/// A recurring budget applies to every month from startMonth until archived.
+model Budget {
+  id         String           @id @default(cuid())
+  userId     String
+  name       String
+  startMonth DateTime         @db.Date
+  recurring  Boolean          @default(true)
+  currency   String           @default("USD") @db.Char(3)
+  archivedAt DateTime?
+  source     DataOrigin       @default(MANUAL)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lines      BudgetCategory[]
+
+  @@index([userId])
+}
+
+model BudgetCategory {
+  id             String              @id @default(cuid())
+  budgetId       String
+  categoryId     String
+  limitAmount    Decimal             @db.Decimal(18, 2)
+  alertThreshold Int                 @default(80)
+  budget         Budget              @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category       TransactionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, categoryId])
+}
+
+/// Detected or user-entered recurring charges. Detected rows start as SUSPECTED.
+model RecurringPayment {
+  id             String               @id @default(cuid())
+  userId         String
+  merchant       String
+  merchantKey    String
+  amount         Decimal              @db.Decimal(18, 2)
+  currency       String               @default("USD") @db.Char(3)
+  frequency      Frequency
+  occurrences    Int
+  lastObservedAt DateTime             @db.Date
+  nextExpectedAt DateTime?            @db.Date
+  confidence     Float                @default(0)
+  status         RecurringStatus      @default(SUSPECTED)
+  categoryId     String?
+  evidence       Json?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       TransactionCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, merchantKey])
+}
+
+model SavingsGoal {
+  id             String             @id @default(cuid())
+  userId         String
+  name           String
+  kind           GoalKind           @default(OTHER)
+  targetAmount   Decimal            @db.Decimal(18, 2)
+  startingAmount Decimal            @default(0) @db.Decimal(18, 2)
+  currency       String             @default("USD") @db.Char(3)
+  targetDate     DateTime?          @db.Date
+  plannedMonthly Decimal?           @db.Decimal(18, 2)
+  source         DataOrigin         @default(MANUAL)
+  archivedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contributions  GoalContribution[]
+
+  @@index([userId])
+}
+
+model GoalContribution {
+  id        String      @id @default(cuid())
+  userId    String
+  goalId    String
+  amount    Decimal     @db.Decimal(18, 2)
+  date      DateTime    @db.Date
+  note      String      @default("")
+  createdAt DateTime    @default(now())
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal      SavingsGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+}
+
+// ---------------------------------------------------------------- investing
+// Investment accounts are ConnectedAccounts of type INVESTMENT or RETIREMENT.
+
+/// Reference data shared by all users (not user-owned).
+model FinancialInstrument {
+  id          String              @id @default(cuid())
+  symbol      String
+  name        String
+  type        InstrumentType
+  exchange    String              @default("")
+  currency    String              @default("USD") @db.Char(3)
+  sector      String?
+  description String?
+  dataSource  String
+  isDemo      Boolean             @default(false)
+  updatedAt   DateTime            @updatedAt
+  holdings    InvestmentHolding[]
+  watchItems  WatchlistItem[]
+  alerts      MarketAlert[]
+
+  @@unique([symbol, exchange])
+  @@index([symbol])
+}
+
+model InvestmentHolding {
+  id           String              @id @default(cuid())
+  userId       String
+  accountId    String
+  instrumentId String
+  quantity     Decimal             @db.Decimal(20, 8)
+  /// Total cost basis for the position.
+  costBasis    Decimal             @db.Decimal(18, 2)
+  source       DataOrigin          @default(MANUAL)
+  updatedAt    DateTime            @updatedAt
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      ConnectedAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  instrument   FinancialInstrument @relation(fields: [instrumentId], references: [id])
+
+  @@unique([accountId, instrumentId])
+  @@index([userId])
+}
+
+/// Point-in-time portfolio value plus cumulative net contributions, so growth
+/// from deposits is never confused with investment return.
+model PortfolioSnapshot {
+  id               String     @id @default(cuid())
+  userId           String
+  date             DateTime   @db.Date
+  marketValue      Decimal    @db.Decimal(18, 2)
+  netContributions Decimal    @db.Decimal(18, 2)
+  realizedGain     Decimal    @default(0) @db.Decimal(18, 2)
+  source           DataOrigin @default(MANUAL)
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Watchlist {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  isDefault Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WatchlistItem[]
+
+  @@index([userId])
+}
+
+model WatchlistItem {
+  id           String              @id @default(cuid())
+  watchlistId  String
+  instrumentId String
+  note         String              @default("")
+  source       DataOrigin          @default(MANUAL)
+  addedAt      DateTime            @default(now())
+  watchlist    Watchlist           @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  instrument   FinancialInstrument @relation(fields: [instrumentId], references: [id])
+
+  @@unique([watchlistId, instrumentId])
+}
+
+model MarketAlert {
+  id            String              @id @default(cuid())
+  userId        String
+  instrumentId  String
+  condition     AlertCondition
+  targetPrice   Decimal             @db.Decimal(18, 4)
+  status        AlertStatus         @default(ACTIVE)
+  lastCheckedAt DateTime?
+  triggeredAt   DateTime?
+  createdAt     DateTime            @default(now())
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instrument    FinancialInstrument @relation(fields: [instrumentId], references: [id])
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------- intelligence
+
+/// An explainable recommendation. Every insight records what, why, how it was calculated,
+/// its assumptions, and the action the user can take.
+model FinancialInsight {
+  id             String        @id @default(cuid())
+  userId         String
+  kind           String
+  title          String
+  summary        String
+  rationale      String
+  calculation    String
+  assumptions    String[]
+  action         String
+  actionHref     String?
+  estimateAmount Decimal?      @db.Decimal(18, 2)
+  estimateType   EstimateType  @default(NONE)
+  evidence       Json?
+  priority       Int           @default(0)
+  status         InsightStatus @default(ACTIVE)
+  dedupeKey      String
+  generatedAt    DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status])
+}
+
+model AIConversation {
+  id        String      @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AIMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  userId         String
+  role           MessageRole
+  content        String
+  /// Tool calls made and data provenance shown to the user.
+  evidence       Json?
+  provider       String?
+  model          String?
+  tokensIn       Int?
+  tokensOut      Int?
+  createdAt      DateTime       @default(now())
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------- shopping & deals
+
+model SavedProduct {
+  id           String             @id @default(cuid())
+  userId       String
+  title        String
+  merchant     String
+  url          String
+  canonicalUrl String
+  imageUrl     String?
+  currency     String             @default("USD") @db.Char(3)
+  latestPrice  Decimal?           @db.Decimal(18, 2)
+  latestSeenAt DateTime?
+  targetPrice  Decimal?           @db.Decimal(18, 2)
+  status       ProductStatus      @default(WISHLIST)
+  brand        String?
+  sku          String?
+  gtin         String?
+  notes        String             @default("")
+  source       DataOrigin         @default(MANUAL)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  observations PriceObservation[]
+  deals        Deal[]
+
+  @@unique([userId, canonicalUrl])
+  @@index([userId, status])
+  @@index([userId, gtin])
+}
+
+model PriceObservation {
+  id             String       @id @default(cuid())
+  userId         String
+  savedProductId String
+  price          Decimal      @db.Decimal(18, 2)
+  currency       String       @db.Char(3)
+  shippingCost   Decimal?     @db.Decimal(18, 2)
+  merchant       String
+  sourceUrl      String
+  availability   String?
+  source         DataOrigin
+  observedAt     DateTime     @default(now())
+  /// productId + day + price: re-observing the same price on the same day is a no-op.
+  observationKey String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product        SavedProduct @relation(fields: [savedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, observationKey])
+  @@index([savedProductId, observedAt])
+}
+
+model Deal {
+  id               String        @id @default(cuid())
+  userId           String
+  savedProductId   String?
+  title            String
+  merchant         String
+  url              String
+  currency         String        @default("USD") @db.Char(3)
+  price            Decimal?      @db.Decimal(18, 2)
+  /// Only set when a prior price was actually observed.
+  previousPrice    Decimal?      @db.Decimal(18, 2)
+  couponCode       String?
+  couponConditions String?
+  cashbackRate     Decimal?      @db.Decimal(5, 2)
+  shippingCost     Decimal?      @db.Decimal(18, 2)
+  verification     Verification  @default(USER_REPORTED)
+  confidence       Confidence    @default(LOW)
+  source           DataOrigin    @default(MANUAL)
+  lastCheckedAt    DateTime      @default(now())
+  expiresAt        DateTime?     @db.Date
+  createdAt        DateTime      @default(now())
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product          SavedProduct? @relation(fields: [savedProductId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model SavedArticle {
+  id               String     @id @default(cuid())
+  userId           String
+  title            String
+  publisher        String?
+  url              String
+  canonicalUrl     String
+  publishedAt      DateTime?
+  summary          String?
+  summarySource    String     @default("none")
+  mentionedSymbols String[]
+  source           DataOrigin @default(EXTENSION)
+  createdAt        DateTime   @default(now())
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, canonicalUrl])
+  @@index([userId, createdAt])
+}
+
+/// Minimal log of extension analyses: domain and page type only, never full page content.
+model BrowserAnalysis {
+  id        String   @id @default(cuid())
+  userId    String
+  domain    String
+  pageType  String
+  entities  Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------- travel
+
+model TravelPlan {
+  id          String          @id @default(cuid())
+  userId      String
+  name        String
+  destination String
+  startDate   DateTime?       @db.Date
+  endDate     DateTime?       @db.Date
+  budget      Decimal?        @db.Decimal(18, 2)
+  currency    String          @default("USD") @db.Char(3)
+  status      TripStatus      @default(PLANNING)
+  notes       String          @default("")
+  source      DataOrigin      @default(MANUAL)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses    TravelExpense[]
+
+  @@index([userId])
+}
+
+model TravelExpense {
+  id          String                @id @default(cuid())
+  userId      String
+  tripId      String
+  category    TravelExpenseCategory
+  description String
+  amount      Decimal               @db.Decimal(18, 2)
+  currency    String                @default("USD") @db.Char(3)
+  date        DateTime?             @db.Date
+  provider    String                @default("")
+  /// A saved price observation (quote), not money actually spent.
+  isQuote     Boolean               @default(false)
+  sourceUrl   String?
+  source      DataOrigin            @default(MANUAL)
+  createdAt   DateTime              @default(now())
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip        TravelPlan            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+}
+
+model RewardProgram {
+  id              String            @id @default(cuid())
+  userId          String
+  name            String
+  programType     RewardProgramType
+  balance         Int
+  /// User-provided valuation in cents per point; null when unknown.
+  pointValueCents Decimal?          @db.Decimal(8, 4)
+  expiresAt       DateTime?         @db.Date
+  source          DataOrigin        @default(MANUAL)
+  updatedAt       DateTime          @updatedAt
+  createdAt       DateTime          @default(now())
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------- notifications, consent, audit
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String
+  title     String
+  body      String
+  link      String?
+  dedupeKey String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt])
+}
+
+/// Append-only. The latest record per purpose is the user's current choice.
+model ConsentRecord {
+  id        String         @id @default(cuid())
+  userId    String
+  purpose   ConsentPurpose
+  granted   Boolean
+  version   String
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+}
+
+/// Security-relevant events. userId is kept nullable so failed logins for unknown emails can be recorded.
+model AuditEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String
+  ipHash    String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}

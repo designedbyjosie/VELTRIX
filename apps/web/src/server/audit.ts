@@ -1,0 +1,33 @@
+import type { Prisma } from "@prisma/client";
+import { db } from "./db";
+import { ipHash } from "./auth/crypto";
+
+export type AuditType =
+  | "auth.register"
+  | "auth.login"
+  | "auth.login_failed"
+  | "auth.logout"
+  | "auth.password_changed"
+  | "auth.account_deleted"
+  | "session.revoked"
+  | "extension.pairing_code_created"
+  | "extension.paired"
+  | "extension.pair_failed"
+  | "extension.token_revoked"
+  | "data.exported"
+  | "data.demo_loaded"
+  | "data.demo_removed"
+  | "data.csv_imported"
+  | "consent.changed"
+  | "security.rate_limited"
+  | "security.origin_rejected";
+
+export async function audit(type: AuditType, opts: { userId?: string | null; ip?: string | null; userAgent?: string | null; metadata?: Prisma.InputJsonValue } = {}) {
+  try {
+    await db.auditEvent.create({
+      data: { type, userId: opts.userId ?? null, ipHash: ipHash(opts.ip ?? null), userAgent: opts.userAgent?.slice(0, 200) ?? null, metadata: opts.metadata },
+    });
+  } catch {
+    // Audit logging must never break the request it describes.
+  }
+}

@@ -13,6 +13,13 @@ const currency = z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, "Use a 3-le
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const id = z.string().min(1).max(64);
 const shortText = (max: number) => z.string().trim().max(max);
+/** http(s) only — zod's .url() alone also accepts javascript:, data: and other schemes. */
+const httpUrl = z
+  .string()
+  .max(2048)
+  .url()
+  .refine((u) => /^https?:\/\//i.test(u), "Only http(s) links are allowed");
+const httpsUrl = httpUrl.refine((u) => /^https:\/\//i.test(u), "Only https links are allowed");
 
 export const accountTypes = [
   "CHECKING",
@@ -134,8 +141,8 @@ export const alertCreateSchema = z.object({
 export const productSaveSchema = z.object({
   title: shortText(200).min(1),
   merchant: shortText(80).min(1),
-  url: z.string().url().max(2048).refine((u) => /^https?:/i.test(u), "Only http(s) links"),
-  imageUrl: z.string().url().max(2048).refine((u) => /^https:/i.test(u), "Only https images").nullable().optional(),
+  url: httpUrl,
+  imageUrl: httpsUrl.nullable().optional(),
   price: positiveMoney.nullable().optional(),
   currency: currency.default("USD"),
   shippingCost: money.nullable().optional(),
@@ -157,7 +164,7 @@ export const priceObservationSchema = z.object({ price: positiveMoney, currency,
 export const dealCreateSchema = z.object({
   title: shortText(200).min(1),
   merchant: shortText(80).min(1),
-  url: z.string().url().max(2048).refine((u) => /^https?:/i.test(u), "Only http(s) links"),
+  url: httpUrl,
   price: positiveMoney.nullable().optional(),
   currency: currency.default("USD"),
   couponCode: shortText(40).nullable().optional(),
@@ -193,7 +200,7 @@ export const travelExpenseSchema = z.object({
   date: isoDate.nullable().optional(),
   provider: shortText(80).optional().default(""),
   isQuote: z.boolean().default(false),
-  sourceUrl: z.string().url().max(2048).nullable().optional(),
+  sourceUrl: httpUrl.nullable().optional(),
 });
 
 // ---------- AI ----------
@@ -226,7 +233,7 @@ const extractedProduct = z.object({
   priceCents: z.number().int().positive().max(1_000_000_000).nullable(),
   currency: currency.nullable(),
   merchant: shortText(80).min(1),
-  imageUrl: z.string().url().max(2048).nullable(),
+  imageUrl: httpUrl.nullable(),
   availability: shortText(40).nullable(),
   brand: shortText(120).nullable(),
   sku: shortText(64).nullable(),
@@ -250,8 +257,8 @@ const extractedTravel = z.object({
   destination: shortText(80).nullable(),
 });
 export const pageExtractionSchema = z.object({
-  url: z.string().url().max(2048),
-  canonicalUrl: z.string().url().max(2048),
+  url: httpUrl,
+  canonicalUrl: httpUrl,
   domain: shortText(253),
   title: shortText(240),
   pageType: z.enum(["product", "article", "instrument", "travel", "unsupported"]),
