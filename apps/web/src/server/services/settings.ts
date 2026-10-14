@@ -49,7 +49,7 @@ export async function listAuditEvents(userId: string) {
 
 /** Everything VELTRIX stores about the user, minus secrets (password hash, token hashes). */
 export async function exportUserData(userId: string) {
-  const [user, accounts, balances, transactions, budgets, goals, recurring, holdings, snapshots, watchlists, alerts, insights, conversations, products, deals, articles, analyses, trips, rewards, consents, notifications] =
+  const [user, accounts, balances, transactions, budgets, goals, recurring, holdings, snapshots, watchlists, alerts, insights, conversations, products, deals, articles, analyses, trips, rewards, consents, notifications, memory, plans] =
     await Promise.all([
       db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, createdAt: true, profile: true, preference: true } }),
       db.connectedAccount.findMany({ where: { userId } }),
@@ -72,6 +72,8 @@ export async function exportUserData(userId: string) {
       db.rewardProgram.findMany({ where: { userId } }),
       db.consentRecord.findMany({ where: { userId } }),
       db.notification.findMany({ where: { userId } }),
+      db.memoryItem.findMany({ where: { userId } }),
+      db.planSnapshot.findMany({ where: { userId } }),
     ]);
   return {
     exportedAt: new Date().toISOString(),
@@ -97,6 +99,8 @@ export async function exportUserData(userId: string) {
     rewards,
     consents,
     notifications,
+    memory,
+    savedPlans: plans,
   };
 }
 

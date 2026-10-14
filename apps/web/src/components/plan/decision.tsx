@@ -23,6 +23,7 @@ interface Decision {
   reasons: DecisionReason[];
   options: Option[];
   missing: string[];
+  preferenceNotes: string[];
   costPerUseCents: number | null;
   monthsToSaveFor: number | null;
   startMonth: string;
@@ -199,6 +200,14 @@ export function PurchaseDecision({ currency, initial }: { currency: string; init
                   </li>
                 ))}
               </ul>
+              {result.preferenceNotes.length > 0 && (
+                <div className="mt-3 rounded-[10px] bg-violet/10 px-3 py-2 text-xs text-ink2">
+                  <p className="mb-0.5 font-medium text-ink">From your saved preferences</p>
+                  {result.preferenceNotes.map((n) => (
+                    <p key={n}>{n}</p>
+                  ))}
+                </div>
+              )}
               {result.confidence === "limited" && <p className="mt-3 text-xs text-warn">Limited review: VELTRIX doesn&apos;t know your {result.missing.join(" or ")}, so future cash flow wasn&apos;t projected.</p>}
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink2">
                 {result.monthsToSaveFor !== null && <span>Saving your monthly surplus, you could pay cash in about {monthsText(result.monthsToSaveFor)}.</span>}

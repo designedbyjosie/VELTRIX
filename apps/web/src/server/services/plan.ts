@@ -32,6 +32,9 @@ import { notFound } from "../errors";
 import { addMonths, daysInMonth, fromYmd, monthRange, todayIn } from "../dates";
 import { budgetStatusForMonth } from "./budgets";
 import { buildProfile, type FinancialProfile } from "./twin";
+import { markMemoryUsed } from "./memory";
+
+const noteUse = (userId: string, p: FinancialProfile) => markMemoryUsed(userId, p.memory.applied.map((a) => a.id));
 
 interface Ctx {
   timezone: string;
@@ -56,6 +59,7 @@ function series(result: PlanResult) {
 
 export async function runWhatIf(userId: string, input: z.infer<typeof scenarioRequestSchema>, ctx: Ctx, profile?: FinancialProfile) {
   const p = profile ?? (await buildProfile(userId, ctx));
+  await noteUse(userId, p);
   const changes = input.changes as ScenarioChange[];
   const base = runScenario(p.baseline, [], input.horizonMonths, p.assumptions);
   const alt = runScenario(p.baseline, changes, input.horizonMonths, p.assumptions);
@@ -78,6 +82,7 @@ type DecisionInput = Omit<z.infer<typeof decisionRequestSchema>, "alternative"> 
 
 export async function decidePurchase(userId: string, input: DecisionInput, ctx: Ctx) {
   const p = await buildProfile(userId, ctx);
+  await noteUse(userId, p);
   let categoryRemainingCents: number | null = null;
   let categoryName: string | null = null;
   if (input.categorySlug) {
@@ -105,8 +110,15 @@ export async function decidePurchase(userId: string, input: DecisionInput, ctx: 
     },
     fmt,
   );
+  // Saved preferences are mentioned, never used to judge.
+  const preferenceNotes: string[] = [];
+  const cat = input.categorySlug ?? null;
+  if (cat && p.memory.preferences.protect.some((x) => x.category === cat)) preferenceNotes.push(`You told VELTRIX ${categoryName ?? cat} matters to you. That's your call; the review above only looks at the numbers.`);
+  if (cat && p.memory.preferences.flexible.some((x) => x.category === cat)) preferenceNotes.push(`You marked ${categoryName ?? cat} as flexible, the first place you'd cut back.`);
+  if (p.memory.preferences.tolerance?.level === "cautious") preferenceNotes.push(`Using your cautious planning preference: the adverse case assumes spending runs ${p.assumptions.spendingVariancePct}% higher.`);
   return {
     ...decision,
+    preferenceNotes,
     startMonth: p.month,
     category: categoryName ? { name: categoryName, remainingCents: categoryRemainingCents } : null,
     figures: { liquid: p.figures.liquid, income: p.figures.income, essential: p.figures.essential, surplus: p.figures.surplus },
@@ -117,6 +129,7 @@ export async function decidePurchase(userId: string, input: DecisionInput, ctx: 
 
 export async function stressTest(userId: string, input: z.infer<typeof stressRequestSchema>, ctx: Ctx) {
   const p = await buildProfile(userId, ctx);
+  await noteUse(userId, p);
   const changes = stressChanges(input);
   const base = simulatePlan(p.baseline, [], input.horizonMonths, p.assumptions);
   const stressed = simulatePlan(p.baseline, changes, input.horizonMonths, p.assumptions);
@@ -135,9 +148,19 @@ export async function stressTest(userId: string, input: z.infer<typeof stressReq
     baseline: { summary: base.summary, series: series(base) },
     stressed: { summary: stressed.summary, series: series(stressed) },
     comparison: comparePlans(base.summary, stressed.summary),
-    steps: preparationSteps(p.baseline, stressed.summary, p.assumptions, p.figures.recurringMonthlyCents),
+    steps: withPriorities(preparationSteps(p.baseline, stressed.summary, p.assumptions, p.figures.recurringMonthlyCents), p),
     assumptions: p.assumptions,
   };
+}
+
+/** Put the categories the user said they'd cut first at the top of the preparation steps. */
+function withPriorities(steps: ReturnType<typeof preparationSteps>, p: FinancialProfile) {
+  const flexible = p.memory.preferences.flexible.map((x) => x.category);
+  if (!flexible.length) return steps;
+  const monthly = (slug: string) => p.categories.find((c) => c.slug === slug)?.monthlyCents ?? p.budget.find((b) => b.slug === slug)?.limitCents ?? 0;
+  const names = flexible.map((slug) => p.categories.find((c) => c.slug === slug)?.name ?? p.budget.find((b) => b.slug === slug)?.name ?? slug);
+  const total = flexible.reduce((s, slug) => s + monthly(slug), 0);
+  return [{ title: `Pause your flexible spending first: ${names.join(", ")}`, detail: "You told VELTRIX these are the first places you'd cut back. Pausing them in a hard month extends how long your reserves last.", impactCents: total || null }, ...steps.filter((x) => !/pause first/.test(x.title))];
 }
 
 // ---------------------------------------------------------------- Saved plans ("time machine")

@@ -121,6 +121,10 @@ static/manifest.template.json   host permission = VELTRIX_API_URL origin (set at
 
 `services/insights.ts` computes opportunities from accounts, transactions, recurring charges, budgets, goals, trips, saved products, articles, holdings and the financial profile. Each draft carries `links` (connected records), `confidence` and its basis, `eventDate`, evidence rows and `savingsParts`. `consolidate()` merges overlapping drafts (one card per event), and `rankOpportunity()` (shared, pure) scores them with a stored breakdown. `refreshInsights` upserts by `dedupeKey`, keeps user decisions (dismissed or done), reopens items whose condition returns, and marks items whose condition no longer holds as `RESOLVED`. `totalPotentialSavings` sums possible savings with each underlying record counted once. Muted kinds live in `UserPreference.mutedInsightKinds`. The UI is at `/app/opportunities`, and the dashboard shows the top items.
 
+## Financial memory
+
+`services/memory.ts` stores user-saved `MemoryItem`s (typed by `memoryValueSchema`; single-value kinds such as the reserve target use `uniqueKey`, so a new value replaces the old one). `UserPreference.memoryEnabled` is the master switch, and `activeMemory()` returns nothing when it's off. Consumers: `buildProfile` (reserve target, caution → spending range; `profile.memory.applied` lists what was used), `decidePurchase` (`preferenceNotes`), `stressTest` (flexible categories first), opportunities (research tickers), and the advisor (context for the model, the `get_memory` tool, and a `save_memory` advisor action that requires Apply). `lastUsedAt` is updated when an item is used. Text that looks like a card, account or ID number, or mentions a password, is rejected.
+
 ## Guided setup and dashboard layout
 
 - `/app/setup` walks a new user through either path: **Connect my bank** (Plaid Link, then income, budget and goal, prefilled from the linked history via `GET /api/setup`) or **Enter it myself** (accounts, income with pay frequency, monthly spending per category, a goal). `POST /api/setup` saves everything at once and marks `onboardingCompletedAt`.

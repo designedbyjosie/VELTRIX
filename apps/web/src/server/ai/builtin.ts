@@ -68,6 +68,7 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
         text: [
           `${d.verdict} — ${whatIf.label}:`,
           ...d.reasons.map(bullet),
+          ...(d.fromSavedPreferences?.length ? ["", "From your saved preferences:", ...d.fromSavedPreferences.map(bullet)] : []),
           "",
           "Your options:",
           ...d.options.map((o: Data) => bullet(`${o.option}: lowest cash ${o.lowestCash}, net worth in 2 years ${o.netWorthIn2Years}${o.interest ? `, ${o.interest} interest` : ""}${o.goalEffects.length ? ` (${o.goalEffects.join("; ")})` : ""}`)),
@@ -134,7 +135,9 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
     if (changes.length) {
       const r = await ctx.propose(changes);
       used.push({ name: "propose_changes", label: `Proposed ${r.proposed.length} change${r.proposed.length === 1 ? "" : "s"}`, provenance: ["user"] });
-      const lines = r.proposed.length ? ["Here's what I'll change. Review each one and click Apply — nothing changes until you do:", ...r.proposed.map((p) => bullet(p.summary))] : [];
+      const onlyMemory = changes.every((c) => c.action === "save_memory");
+      const intro = onlyMemory ? "I'll remember this once you confirm. Click Apply to save it to your financial memory:" : "Here's what I'll change. Review each one and click Apply — nothing changes until you do:";
+      const lines = r.proposed.length ? [intro, ...r.proposed.map((p) => bullet(p.summary))] : [];
       for (const x of r.rejected) lines.push(bullet(`Couldn't propose: ${x.reason}`));
       lines.push(...notes.map(bullet));
       return { text: lines.join("\n"), tools: used };
@@ -188,6 +191,13 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
       "Risks to consider: company- or sector-specific events, valuation changes and market-wide downturns. Past performance doesn't predict future returns.",
     ];
     return { text: lines.filter(Boolean).join("\n"), tools: used };
+  }
+
+  if (/\b(what do you (remember|know) about me|my (saved )?preferences|what('?s| is) in (my )?memory|what have i (told|asked) you to remember)\b/.test(q)) {
+    const d = await call("get_memory");
+    if (!d.memoryEnabled) return { text: "Financial memory is switched off, so I'm not using any saved preferences. You can turn it back on in Memory.", tools: used };
+    if (!d.items.length) return { text: "You haven't saved any preferences yet. Try “Remember that my emergency fund target is 6 months” or “Travel matters to me”, and you'll confirm each one before it's saved.", tools: used };
+    return { text: ["Here's what you've asked me to remember:", ...d.items.map((i: Data) => bullet(`${i.preference} (${i.type})`)), "You can edit, switch off or delete any of these in Memory."].join("\n"), tools: used };
   }
 
   if (/(opportunit|recommendation|what should i (look at|review|do|know)|anything i should|needs? my attention|what'?s (important|urgent))/.test(q)) {

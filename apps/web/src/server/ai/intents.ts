@@ -4,7 +4,7 @@
  * Used by the built-in advisor when no language model is configured. Pure: it only
  * turns text into proposed changes, which the user must still apply.
  */
-import type { AdvisorChange, DashboardWidget, budgetCategorySlugs } from "@veltrix/shared";
+import { looksSensitive, type AdvisorChange, type DashboardWidget, type MemoryValue, type budgetCategorySlugs } from "@veltrix/shared";
 
 type BudgetSlug = (typeof budgetCategorySlugs)[number];
 import { addMonths, addDays, daysInMonth } from "../dates";
@@ -181,8 +181,49 @@ export function splitClauses(message: string): string[] {
     .filter(Boolean);
 }
 
+/** Preferences the user explicitly states or asks VELTRIX to remember. */
+export function parseMemory(original: string): MemoryValue | null {
+  const raw = original.trim().replace(/[.!]+$/, "");
+  const explicit = raw.match(/^(?:please\s+)?(?:remember|note|keep in mind|don't forget)(?:\s+that)?\s+(.+)$/i);
+  const body = explicit ? explicit[1] : raw;
+  const c = body.toLowerCase();
+  const months = c.match(/\b(\d{1,2}(?:\.\d)?|three|six|twelve)\s+months?\b/);
+  const monthWord: Record<string, number> = { three: 3, six: 6, twelve: 12 };
+  if (months && /\b(emergency|reserve|rainy day|safety net|of (expenses|essentials|spending))\b/.test(c) && /\b(target|want|keep|aim|goal|like|should|is)\b/.test(c)) {
+    return { kind: "emergency_target", months: Math.min(24, monthWord[months[1]] ?? Number(months[1])) };
+  }
+  if (/\b50\s*\/\s*30\s*\/\s*20\b/.test(c) && /\b(use|follow|do|budget|method|rule|prefer)\b/.test(c)) return { kind: "budgeting_method", method: "50/30/20" };
+  if (/\bzero[- ]based\b/.test(c)) return { kind: "budgeting_method", method: "zero_based" };
+  if (/\benvelope (budget|method|system)/.test(c)) return { kind: "budgeting_method", method: "envelope" };
+  if (/\bpay(ing)? (myself|yourself) first\b/.test(c)) return { kind: "budgeting_method", method: "pay_yourself_first" };
+  if (/\b(i'?m|i am|plan|be|keep (it|plans?))\b.*\b(cautious|conservative|careful)(ly)?\b/.test(c) || /\bplan (cautiously|conservatively)\b/.test(c)) return { kind: "uncertainty_tolerance", level: "cautious" };
+  if (/\b(i'?m|i am)\b.*\bcomfortable with (risk|uncertainty|tight)/.test(c)) return { kind: "uncertainty_tolerance", level: "comfortable" };
+  const category = firstMatch(c, CATEGORY_WORDS);
+  if (category && /\b(matters? (a lot )?to me|is (a )?(top |high )?priority|is important to me|i (really )?value|protect)\b/.test(c)) return { kind: "category_priority", category, level: "protect" };
+  if (category && /\b(is flexible|can (be )?cut|cut (back on )?\w*\s*first|first (thing|place) i'?d cut|could live without|is optional)\b/.test(c)) return { kind: "category_priority", category, level: "flexible" };
+  const interest = body.match(/^(?:i'?m|i am)\s+(?:interested in|researching|following)\s+(.+)$/i);
+  if (interest) {
+    const parts = interest[1].split(/,|\band\b/).map((x) => x.trim()).filter(Boolean);
+    const symbols = parts.filter((x) => /^\$?[A-Z]{1,5}$/.test(x)).map((x) => x.replace("$", ""));
+    const topics = parts.filter((x) => !/^\$?[A-Z]{1,5}$/.test(x)).map((x) => x.slice(0, 40));
+    if (symbols.length || topics.length) return { kind: "research_interest", symbols: symbols.slice(0, 20), topics: topics.slice(0, 10) };
+  }
+  if (explicit) {
+    const text = body.charAt(0).toUpperCase() + body.slice(1);
+    if (looksSensitive(text)) return null;
+    return { kind: "note", text: text.slice(0, 300) };
+  }
+  return null;
+}
+
 function parseClause(original: string, ctx: IntentContext, notes: string[]): AdvisorChange | null {
   const c = original.toLowerCase();
+  if (/^(please\s+)?(remember|note|keep in mind|don't forget)\b/.test(c) && looksSensitive(original)) {
+    notes.push("I won't save account numbers, card numbers, passwords or ID numbers to memory.");
+    return null;
+  }
+  const memory = parseMemory(original);
+  if (memory) return { action: "save_memory", memory };
   const amounts = findAmounts(original);
   const amount = amounts[0]?.value;
   const isQuestion = /^(what|how|which|where|why|when|can|could|should|would|is|are|do|does)\b/.test(c) && !/\b(set|change|update|add|hide|show|remove|make)\b/.test(c);

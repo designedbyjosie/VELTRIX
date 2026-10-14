@@ -53,6 +53,9 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/insights?refresh=1`, `/api/insights/:id` | GET · PATCH | session | PATCH `{status: ACTIVE\|FOLLOWING\|DONE\|DISMISSED, outcome?}` |
 | `/api/opportunities?refresh=1` | GET | session | Open + followed (ranked), 90-day history, muted kinds, possible savings (deduplicated) |
 | `/api/opportunities/mute` | POST | session | `{kind, muted}` |
+| `/api/memory` | GET POST DELETE | session | List (with master switch) · save a typed preference · forget everything |
+| `/api/memory/:id` | PATCH DELETE | session | `{value?, enabled?}` · delete |
+| `/api/memory/settings` | PATCH | session | `{enabled}` master switch |
 | `/api/portfolio`, `/api/portfolio/performance?range=` | GET | session | Checks price alerts |
 | `/api/holdings`, `/api/holdings/:id` | POST · DELETE | session | Investment/retirement accounts only |
 | `/api/markets/search?q=`, `/api/markets/:symbol?range=` | GET | session | Data-source label included |

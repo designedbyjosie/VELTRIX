@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   BadgePercent,
+  Brain,
   ChartCandlestick,
   ChartLine,
   ChartPie,
@@ -39,6 +40,7 @@ export const NAV: NavItem[] = [
   { href: "/app/shopping", label: "Shopping", icon: ShoppingBag },
   { href: "/app/travel", label: "Travel", icon: Plane },
   { href: "/app/advisor", label: "AI Advisor", icon: Sparkles },
+  { href: "/app/memory", label: "Memory", icon: Brain },
   { href: "/app/reports", label: "Reports", icon: FileChartColumn },
   { href: "/app/settings", label: "Settings", icon: Settings },
 ];

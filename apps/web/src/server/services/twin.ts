@@ -11,6 +11,7 @@ import { cents } from "../money";
 import { addDays, addMonths, fromYmd, monthStart, todayIn, ymd } from "../dates";
 import { listGoals } from "./goals";
 import { activeBudgetId } from "./budgets";
+import { activeMemory, planningPreferences, TOLERANCE_VARIANCE_FACTOR } from "./memory";
 
 export type FigureSource = "bank" | "imported" | "entered" | "budget" | "estimated" | "missing";
 
@@ -89,7 +90,11 @@ export async function buildProfile(userId: string, ctx: Ctx) {
     db.$queryRaw<{ m: string }[]>`SELECT DISTINCT to_char("date", 'YYYY-MM') AS m FROM "Transaction" WHERE "userId" = ${userId} AND "date" >= ${fromYmd(histFrom)} AND "date" < ${fromYmd(histTo)}`,
     db.transactionCategory.findMany({ where: { OR: [{ userId: null }, { userId }] }, select: { id: true, slug: true, name: true, kind: true } }),
   ]);
-  const assumptions = readAssumptions(profile?.planningAssumptions);
+  const stored = readAssumptions(profile?.planningAssumptions);
+  // Saved preferences (financial memory) take precedence over stored defaults.
+  const memory = await activeMemory(userId);
+  const prefs = planningPreferences(memory);
+  const assumptions = { ...stored, emergencyMonths: prefs.emergencyMonths?.months ?? stored.emergencyMonths };
   const issues: DataIssue[] = [];
   const catById = new Map(categories.map((c) => [c.id, c]));
 
@@ -231,7 +236,8 @@ export async function buildProfile(userId: string, ctx: Ctx) {
       if (mean > 0) derivedVariance = Math.round(Math.min(50, Math.max(5, (sd / mean) * 100)));
     }
   }
-  const spendingVariancePct = assumptions.spendingVariancePct ?? derivedVariance ?? DEFAULT_ASSUMPTIONS.spendingVariancePct;
+  const baseVariance = assumptions.spendingVariancePct ?? derivedVariance ?? DEFAULT_ASSUMPTIONS.spendingVariancePct;
+  const spendingVariancePct = Math.min(100, Math.round(baseVariance * (prefs.tolerance ? TOLERANCE_VARIANCE_FACTOR[prefs.tolerance.level] : 1)));
 
   // ---------------- Commitments in the next 30 days
   const horizon = addDays(today, 30);
@@ -273,7 +279,7 @@ export async function buildProfile(userId: string, ctx: Ctx) {
     income,
     liquid,
     investments: { cents: investAccounts.length ? baseline.investmentsCents : null, source: sourceOf(investAccounts), basis: investAccounts.length ? `Investment and retirement accounts: ${investAccounts.map((a) => a.name).join(", ")}` : "No investment accounts", asOf: oldest(investAccounts), stale: investAccounts.some((a) => a.stale) } as Figure,
-    debt: { cents: debts.reduce((s, d) => s + d.balanceCents, 0), source: sourceOf(debtAccounts.length ? debtAccounts : []), basis: debts.length ? `Balances owed: ${debts.map((d) => d.name).join(", ")}` : "No debts recorded", asOf: oldest(debtAccounts), stale: debtAccounts.some((a) => a.stale) } as Figure,
+    debt: { cents: debts.length ? debts.reduce((s, d) => s + d.balanceCents, 0) : null, source: sourceOf(debtAccounts.length ? debtAccounts : []), basis: debts.length ? `Balances owed: ${debts.map((d) => d.name).join(", ")}` : "No debts recorded", asOf: oldest(debtAccounts), stale: debtAccounts.some((a) => a.stale) } as Figure,
     essential: { cents: spendSource === "missing" ? null : essentialMonthly, source: spendSource, basis: `${spendBasis}. Essential categories: ${assumptions.essentialCategories.join(", ")}`, asOf: null, stale: false } as Figure,
     discretionary: { cents: spendSource === "missing" ? null : discretionaryMonthly, source: spendSource, basis: `${spendBasis}. Everything not marked essential`, asOf: null, stale: false } as Figure,
     surplus: { cents: surplus, source: surplus === null ? "missing" : "estimated", basis: "Income − essential − discretionary spending − debt payments you entered (before goal saving)", asOf: null, stale: false } as Figure,
@@ -299,6 +305,15 @@ export async function buildProfile(userId: string, ctx: Ctx) {
     monthsOfHistory: monthsCovered,
     issues,
     canProject: income.cents !== null && spendSource !== "missing",
+    /** Saved preferences that shaped this profile, and how. */
+    memory: {
+      preferences: prefs,
+      applied: [
+        ...(prefs.emergencyMonths ? [{ id: prefs.emergencyMonths.memoryId, text: `Reserve target: ${prefs.emergencyMonths.months} months of essentials` }] : []),
+        ...(prefs.tolerance && prefs.tolerance.level !== "balanced" ? [{ id: prefs.tolerance.memoryId, text: `${prefs.tolerance.level === "cautious" ? "Cautious" : "Comfortable"} planning: spending range ${baseVariance}% → ${spendingVariancePct}%` }] : []),
+        ...[...prefs.protect, ...prefs.flexible].map((x) => ({ id: x.memoryId, text: `${catById.size ? ([...catById.values()].find((c) => c.slug === x.category)?.name ?? x.category) : x.category} is ${prefs.protect.includes(x) ? "a priority" : "flexible"} (used in stress tests and purchase reviews)` })),
+      ],
+    },
   };
 }
 

@@ -51,12 +51,17 @@ The advisor calls `get_financial_profile`, `run_what_if`, `review_purchase` and 
 - **VELTRIX:** the existing recommendations became one structured model (`FinancialInsight`) with linked records, confidence and its basis, event date, last-verified time, evidence rows, next action, status (open, following, done, dismissed, resolved automatically) and outcome. New connected rules: a renewal landing in a category already over budget; recurring price increases; upcoming bills vs. cash; a trip that delays a goal (via the plan engine); a saved product's good price checked against the plan; saved research mentioning a holding or watchlist symbol. Overlapping cards are consolidated into one event, and possible savings are totaled with each underlying charge counted once. Ranking is base + impact + timing, × confidence, × a feedback factor that only counts recent dismissals of that kind. Each card shows this breakdown. Users can follow, dismiss with an outcome, mark done, or mute a kind.
 - **Success metric:** share of opportunities marked "acted" vs. "not relevant"/"not accurate" per kind (used to tune or retire rules); possible savings acted on.
 
+### 8. Financial memory, built
+- **Problem:** assistants either forget everything between sessions or quietly build a profile the user can't see.
+- **Alternatives:** general AI assistants offer memory, but it isn't tied to financial calculations, and inferred memories can be hard to inspect.
+- **VELTRIX:** only items the user deliberately saves (`MemoryItem`): reserve target, savings milestones, budgeting method, research interests, spending priorities (important or flexible), planning caution, and free-text notes, with card numbers, IDs and passwords blocked. Each item can be edited, switched off or deleted; there's a master switch and "forget everything". Saved items change real calculations: the reserve target sets the plan's target, caution widens the spending range, flexible categories lead the stress-test steps, priorities are mentioned (never judged) in purchase reviews, and research tickers feed Opportunities. The advisor gets enabled items as context and can *propose* a memory, which the user applies. Each item shows when it was last used, and memory is included in the data export.
+- **Success metric:** share of users with at least one enabled memory item; how often an item is switched off soon after it's applied (a sign of a poor suggestion).
+
 ## Next, in dependency order
 
-1. **Financial memory:** saved preferences (budgeting method, priorities, uncertainty tolerance) the user can inspect, edit and disable. These are used by the advisor and the plan defaults. Planning assumptions already form the first part of this.
-2. **Permissions center and autopilot:** per-capability toggles, pending actions and action history. It builds on the advisor-actions model (proposed → applied/dismissed, audited). The scope stays at read-only analysis and proposals; nothing moves money.
-3. **Data-source status page:** connection health, last sync, permission scope and limitations for Plaid, Finnhub, FX and email. Partly present in Settings → Integrations and the profile issues list.
-4. **Opportunity radar:** verified offers and price changes only, with source, date and eligibility. It needs merchant and travel price feeds (not configured), so it shows "possible" rather than "verified" until those exist.
+1. **Permissions center and autopilot:** per-capability toggles, pending actions and action history. It builds on the advisor-actions model (proposed → applied/dismissed, audited). The scope stays at read-only analysis and proposals; nothing moves money.
+2. **Data-source status page:** connection health, last sync, permission scope and limitations for Plaid, Finnhub, FX and email. Partly present in Settings → Integrations and the profile issues list.
+3. **Opportunity radar:** verified offers and price changes only, with source, date and eligibility. It needs merchant and travel price feeds (not configured), so it shows "possible" rather than "verified" until those exist.
 
 ## Dependencies still missing
 - Plaid production approval (real bank data beyond sandbox) and Plaid webhooks.

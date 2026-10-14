@@ -62,6 +62,8 @@ const EVENT_LABELS: Record<string, string> = {
   "data.csv_imported": "Transactions imported",
   "setup.completed": "Guided setup completed",
   "advisor.change_applied": "Advisor change applied",
+  "memory.saved": "Saved to financial memory",
+  "memory.deleted": "Removed from financial memory",
   "consent.changed": "Privacy choice changed",
   "security.rate_limited": "Too many requests blocked",
   "security.origin_rejected": "Cross-site request blocked",

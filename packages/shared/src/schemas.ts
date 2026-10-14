@@ -386,6 +386,8 @@ export const advisorChangeSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("add_goal_contribution"), goalId: id, amount: money.refine((v) => Number(v) !== 0, "Amount can't be zero") }),
   z.object({ action: z.literal("add_transaction"), date: isoDate, amount: money.refine((v) => Number(v) !== 0, "Amount can't be zero"), merchant: shortText(140).min(1), category: z.enum([...budgetCategorySlugs, "income"]).nullable().optional(), accountId: id.nullable().optional() }),
   z.object({ action: z.literal("set_dashboard_widget"), widget: z.enum(DASHBOARD_WIDGET_IDS), visible: z.boolean(), position: z.enum(["top", "bottom"]).optional() }),
+  /** Save a preference to financial memory (only when the user asked to remember it). */
+  z.object({ action: z.literal("save_memory"), memory: z.lazy(() => memoryValueSchema) }),
 ]);
 export type AdvisorChange = z.infer<typeof advisorChangeSchema>;
 export const MAX_CHANGES_PER_PROPOSAL = 10;
@@ -448,3 +450,36 @@ export const planSnapshotCreateSchema = z.object({
   decision: z.object({ label, priceCents: posCents, verdict: z.enum(["fits", "consider", "risk", "unknown"]), choice: z.enum(["buy_now", "buy_later", "alternative", "financed", "skip", "undecided"]) }).nullable().optional(),
   note: shortText(500).optional().default(""),
 });
+
+// ---------- Financial memory ----------
+export const memoryKinds = ["emergency_target", "savings_milestone", "budgeting_method", "research_interest", "category_priority", "uncertainty_tolerance", "note"] as const;
+export const budgetingMethods = ["50/30/20", "zero_based", "envelope", "pay_yourself_first", "none"] as const;
+
+/** Card numbers, US SSNs, routing/account-style digit runs and passwords don't belong in memory. */
+const SENSITIVE = [/\b(?:\d[ -]?){13,19}\b/, /\b\d{3}-\d{2}-\d{4}\b/, /\b\d{9,17}\b/, /\b(password|passcode|pin|ssn|social security|cvv|routing number|account number)\b/i];
+export function looksSensitive(text: string): boolean {
+  return SENSITIVE.some((r) => r.test(text));
+}
+const memoryText = (max: number) =>
+  shortText(max)
+    .min(1, "Write something to remember")
+    .refine((t) => !looksSensitive(t), "Don't save account numbers, card numbers, passwords or ID numbers in memory.");
+
+export const memoryValueSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("emergency_target"), months: z.number().min(0).max(24) }),
+  z.object({ kind: z.literal("savings_milestone"), text: memoryText(120), amountCents: z.number().int().positive().max(10_000_000_000).nullable().optional(), date: isoDate.nullable().optional() }),
+  z.object({ kind: z.literal("budgeting_method"), method: z.enum(budgetingMethods) }),
+  z.object({
+    kind: z.literal("research_interest"),
+    topics: z.array(memoryText(40)).max(10).default([]),
+    symbols: z.array(z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9.\-^]{0,9}$/, "Use ticker symbols like VOO")).max(20).default([]),
+  }),
+  z.object({ kind: z.literal("category_priority"), category: z.enum(budgetCategorySlugs), level: z.enum(["protect", "flexible"]) }),
+  z.object({ kind: z.literal("uncertainty_tolerance"), level: z.enum(["cautious", "balanced", "comfortable"]) }),
+  z.object({ kind: z.literal("note"), text: memoryText(300) }),
+]).superRefine((v, ctx) => {
+  if (v.kind === "research_interest" && v.topics.length + v.symbols.length === 0) ctx.addIssue({ code: "custom", message: "Add at least one topic or ticker", path: ["topics"] });
+});
+export type MemoryValue = z.infer<typeof memoryValueSchema>;
+export const memoryUpdateSchema = z.object({ value: memoryValueSchema.optional(), enabled: z.boolean().optional() });
+export const memorySettingsSchema = z.object({ enabled: z.boolean() });

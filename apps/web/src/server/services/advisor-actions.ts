@@ -16,6 +16,7 @@ import { activeBudgetId, removeBudgetLine, setBudgetLine } from "./budgets";
 import { categoryBySlug } from "./categories";
 import { addContribution, createGoal, updateGoal } from "./goals";
 import { createTransaction } from "./transactions";
+import { describeMemory, saveMemory } from "./memory";
 
 export interface ActionCtx {
   timezone: string;
@@ -98,6 +99,8 @@ async function describe(userId: string, change: AdvisorChange, ctx: ActionCtx): 
       const cat = change.category ? (await categoryBySlug(userId)).get(change.category) : null;
       return `${c < 0 ? "Record spending" : "Record income"} of ${formatMoney(Math.abs(c), ctx.currency)} — ${change.merchant}${cat ? ` (${cat.name})` : ""} on ${change.date}`;
     }
+    case "save_memory":
+      return `Remember: ${describeMemory(change.memory, ctx.currency)}`;
     case "set_dashboard_widget":
       return change.visible ? `${change.position === "top" ? "Move" : "Show"} "${widgetLabel(change.widget)}" ${change.position === "top" ? "to the top of" : change.position === "bottom" ? "at the bottom of" : "on"} your dashboard` : `Hide "${widgetLabel(change.widget)}" from your dashboard`;
   }
@@ -135,6 +138,9 @@ async function perform(userId: string, change: AdvisorChange, ctx: ActionCtx) {
       await createTransaction(userId, { date: change.date, amount: change.amount, merchant: change.merchant, description: "", notes: "Added by the advisor", categoryId: cat?.id ?? null, accountId: change.accountId ?? null, currency: ctx.currency });
       return;
     }
+    case "save_memory":
+      await saveMemory(userId, change.memory, "advisor");
+      return;
     case "set_dashboard_widget": {
       const p = await db.userProfile.findUnique({ where: { userId }, select: { dashboardLayout: true } });
       const layout = setWidgetVisibility(normalizeLayout(p?.dashboardLayout), change.widget, change.visible, change.position);

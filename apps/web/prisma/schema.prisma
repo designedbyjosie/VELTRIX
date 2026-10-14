@@ -229,6 +229,7 @@ model User {
   plaidItems        PlaidItem[]
   advisorActions    AdvisorAction[]
   planSnapshots     PlanSnapshot[]
+  memoryItems       MemoryItem[]
 }
 
 enum AuthTokenPurpose {
@@ -331,6 +332,8 @@ model UserPreference {
   extensionAutoAnalyze Boolean  @default(true)
   /// Opportunity kinds the user muted.
   mutedInsightKinds    String[] @default([])
+  /// Master switch for financial memory (saved preferences used by the advisor and plans).
+  memoryEnabled        Boolean  @default(true)
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -734,6 +737,26 @@ enum AdvisorActionStatus {
   APPLIED
   DISMISSED
   FAILED
+}
+
+/// A preference the user deliberately saved ("financial memory"). Never inferred.
+model MemoryItem {
+  id         String    @id @default(cuid())
+  userId     String
+  kind       String
+  /// Set for kinds that hold one value (e.g. "emergency_target", "category_priority:food").
+  uniqueKey  String?
+  value      Json
+  enabled    Boolean   @default(true)
+  /// "user" or "advisor" (proposed by the advisor and applied by the user).
+  source     String    @default("user")
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, uniqueKey])
+  @@index([userId])
 }
 
 /// An immutable saved plan: the inputs, assumptions and projection at the moment it was saved.

@@ -288,7 +288,9 @@ export async function computeInsights(userId: string, timezone = "UTC", currency
 
   // F. Saved research mentions something you own or watch
   const held = new Map(holdings.map((h) => [h.instrument.symbol, h.instrument.name]));
-  const watched = new Map(watch.map((w) => [w.instrument.symbol, w.instrument.name]));
+  const watched = new Map<string, string | null>(watch.map((w) => [w.instrument.symbol, w.instrument.name]));
+  // Tickers the user saved as research interests in financial memory count like the watchlist.
+  for (const sym of profile.memory.preferences.researchSymbols) if (!watched.has(sym)) watched.set(sym, null);
   let researchCount = 0;
   for (const a of articles) {
     for (const sym of a.mentionedSymbols) {
@@ -299,10 +301,10 @@ export async function computeInsights(userId: string, timezone = "UTC", currency
       out.push({
         kind: "research_holding",
         dedupeKey: `research:${a.id}:${sym}`,
-        title: `An article you saved mentions ${sym}, ${inHoldings ? "which you hold" : "on your watchlist"}`,
+        title: `An article you saved mentions ${sym}, ${inHoldings ? "which you hold" : "which you follow"}`,
         summary: `"${a.title.slice(0, 120)}"${a.publisher ? ` (${a.publisher})` : ""}. Review it alongside ${sym}'s price and your ${inHoldings ? "position" : "research notes"}.`,
         rationale: "Connecting new research to what you already own or follow keeps decisions in context.",
-        calculation: `${sym} appears in the article's detected tickers and in your ${inHoldings ? "holdings" : "watchlist"}.`,
+        calculation: `${sym} appears in the article's detected tickers and in your ${inHoldings ? "holdings" : "watchlist or saved research interests"}.`,
         assumptions: ["Ticker detection can match unrelated uses of the same letters.", "This is information, not an investment recommendation."],
         action: `Open ${sym}`,
         actionHref: `/app/markets/${encodeURIComponent(sym)}`,

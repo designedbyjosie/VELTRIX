@@ -25,6 +25,7 @@ import { editableItems, type ProposalResult } from "../services/advisor-actions"
 import { accountTypes, budgetCategorySlugs, DASHBOARD_WIDGET_IDS, goalKinds, MAX_CHANGES_PER_PROPOSAL, scenarioChangeSchema, type ScenarioChange } from "@veltrix/shared";
 import { buildProfile } from "../services/twin";
 import { decidePurchase, runWhatIf, stressTest } from "../services/plan";
+import { activeMemory, markMemoryUsed, memoryEnabled } from "../services/memory";
 
 export interface ToolContext {
   userId: string;
@@ -397,7 +398,12 @@ export const TOOLS: AdvisorTool<any>[] = [
             required: ["action"],
             additionalProperties: false,
             properties: {
-              action: { type: "string", enum: ["set_monthly_income", "update_account_balance", "create_account", "set_budget_limit", "remove_budget_category", "create_goal", "update_goal", "add_goal_contribution", "add_transaction", "set_dashboard_widget"] },
+              action: { type: "string", enum: ["set_monthly_income", "update_account_balance", "create_account", "set_budget_limit", "remove_budget_category", "create_goal", "update_goal", "add_goal_contribution", "add_transaction", "set_dashboard_widget", "save_memory"] },
+              memory: {
+                type: "object",
+                description:
+                  "save_memory only, and only when the user explicitly asks you to remember something. One of: {kind:'emergency_target', months}, {kind:'savings_milestone', text, amountCents?, date?}, {kind:'budgeting_method', method:'50/30/20'|'zero_based'|'envelope'|'pay_yourself_first'|'none'}, {kind:'research_interest', topics:[], symbols:[]}, {kind:'category_priority', category, level:'protect'|'flexible'}, {kind:'uncertainty_tolerance', level:'cautious'|'balanced'|'comfortable'}, {kind:'note', text}. Never save account numbers, passwords, health or other sensitive details.",
+              },
               amount: { type: "string", description: "set_monthly_income (monthly take-home), add_goal_contribution (negative = withdrawal), add_transaction (negative = spending, positive = income)" },
               accountId: { type: "string", description: "update_account_balance; optional for add_transaction" },
               balance: { type: "string", description: "update_account_balance, create_account" },
@@ -431,6 +437,23 @@ export const TOOLS: AdvisorTool<any>[] = [
     },
   },
 
+  {
+    name: "get_memory",
+    description: "Preferences and goals the user deliberately saved to VELTRIX's financial memory (reserve target, savings milestones, budgeting method, research interests, spending priorities, planning caution, notes). Only enabled items are returned; returns nothing when memory is switched off.",
+    input: z.object({}),
+    jsonSchema: noArgs,
+    async run(ctx) {
+      const on = await memoryEnabled(ctx.userId);
+      const items = on ? await activeMemory(ctx.userId) : [];
+      await markMemoryUsed(ctx.userId, items.map((i) => i.id));
+      return {
+        label: "Your saved preferences",
+        provenance: ["user"],
+        link: { label: "Manage memory", href: "/app/memory" },
+        data: { memoryEnabled: on, items: items.map((i) => ({ type: i.kindLabel, preference: i.text, savedBy: i.source === "advisor" ? "you, via the advisor" : "you" })) },
+      };
+    },
+  },
   {
     name: "get_financial_profile",
     description: "The user's financial picture used for planning: monthly income, essential and discretionary spending, surplus, cash, investments, debt, reserve coverage, upcoming 30-day commitments and data gaps. Every figure includes its source (bank sync, imported, user-entered, budget, calculated or missing) and how it was calculated.",
@@ -601,6 +624,7 @@ export const TOOLS: AdvisorTool<any>[] = [
           confidence: d.confidence,
           missingData: d.missing,
           reasons: d.reasons.map((r) => r.text),
+          fromSavedPreferences: d.preferenceNotes,
           monthsToSaveFromSurplus: d.monthsToSaveFor,
           options: d.options.map((o) => ({ option: o.label, lowestCash: m(o.summary.lowestLiquid.cents), netWorthIn2Years: m(o.summary.endNetWorthCents), interest: o.vsSkip.interestDeltaCents > 0 ? m(o.vsSkip.interestDeltaCents) : null, goalEffects: o.vsSkip.goalDelays.filter((g) => g.delayMonths || g.endSavedDeltaCents < 0).map((g) => (g.delayMonths ? `${g.name}: ${g.delayMonths} month(s) later` : `${g.name}: ${m(-g.endSavedDeltaCents)} less saved`)) })),
           note: "Present the trade-offs and let the user decide. Do not shame or moralize.",

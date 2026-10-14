@@ -19,7 +19,7 @@ export function ProfilePanel({ profile: p }: { profile: FinancialProfile }) {
         <FigureTile label="Left after spending" figure={p.figures.surplus as Figure} currency={c} suffix="/mo" emphasis />
         <FigureTile label="Available cash" figure={p.figures.liquid as Figure} currency={c} />
         <FigureTile label="Investments" figure={p.figures.investments as Figure} currency={c} emptyText="None added" />
-        <FigureTile label="Debt owed" figure={p.figures.debt as Figure} currency={c} />
+        <FigureTile label="Debt owed" figure={p.figures.debt as Figure} currency={c} emptyText="None added" />
         <div className="panel-inner flex flex-col gap-1.5 p-4">
           <p className="text-xs text-ink3">Reserve coverage</p>
           <p className="num font-display text-xl font-semibold">{p.figures.reserveMonths === null ? <span className="text-ink3">Unknown</span> : `${p.figures.reserveMonths} months`}</p>
@@ -30,6 +30,18 @@ export function ProfilePanel({ profile: p }: { profile: FinancialProfile }) {
           </Explain>
         </div>
       </div>
+
+      {p.memory.applied.length > 0 && (
+        <div className="panel-inner flex flex-wrap items-center gap-2 px-4 py-3 text-xs text-ink2">
+          <span className="font-medium text-ink">Using your saved preferences:</span>
+          {p.memory.applied.map((a) => (
+            <Badge key={a.id + a.text} tone="violet">{a.text}</Badge>
+          ))}
+          <Link href="/app/memory" className="ml-auto text-cyan hover:underline">
+            Manage memory
+          </Link>
+        </div>
+      )}
 
       {p.issues.length > 0 && (
         <Card title="What would make this more accurate">

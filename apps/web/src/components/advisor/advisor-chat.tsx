@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Check, Database, FlaskConical, LayoutDashboard, MessageSquarePlus, Send, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { Bot, Brain, Check, Database, FlaskConical, LayoutDashboard, MessageSquarePlus, Send, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { Badge, Button, FormError, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
@@ -46,7 +46,7 @@ const PROVENANCE: Record<string, { label: string; tone: "info" | "pos" | "warn" 
 };
 
 const SUGGESTIONS = ["Where did my money go this month?", "Which categories are over budget?", "What if I buy a $1,500 laptop?", "What if my income drops 15%?", "Stress-test my finances if I lose my job for 3 months", "Compare VOO and QQQ"];
-const CHANGE_SUGGESTIONS = ["Set my food budget to $400", "I make $4,000 a month", "I want to save $5,000 for a car by June 2027", "Move my goals to the top of my dashboard"];
+const CHANGE_SUGGESTIONS = ["Set my food budget to $400", "I make $4,000 a month", "Remember that my emergency fund target is 6 months", "Move my goals to the top of my dashboard"];
 
 /** Changes the advisor proposed. Each takes effect only when the user applies it. */
 function ProposedChanges({ actions: initial }: { actions: ProposedAction[] }) {
@@ -150,7 +150,7 @@ function Content({ text }: { text: string }) {
   );
 }
 
-export function AdvisorChat({ status, conversations: initialConvos }: { status: AdvisorStatus; conversations: { id: string; title: string; updatedAt: string }[] }) {
+export function AdvisorChat({ status, conversations: initialConvos, memory }: { status: AdvisorStatus; conversations: { id: string; title: string; updatedAt: string }[]; memory?: { enabled: boolean; active: number } }) {
   const params = useSearchParams();
   const [convos, setConvos] = useState(initialConvos);
   const [convoId, setConvoId] = useState<string | null>(null);
@@ -257,6 +257,12 @@ export function AdvisorChat({ status, conversations: initialConvos }: { status: 
             )}
             {status.reason === "ok" && "Numbers come from VELTRIX's calculations; the model explains them."}
           </span>
+          {memory && (
+            <Link href="/app/memory" className="ml-auto inline-flex items-center gap-1 text-ink3 hover:text-ink">
+              <Brain className="size-3.5" aria-hidden />
+              {!memory.enabled ? "Memory off" : memory.active ? `Using ${memory.active} saved preference${memory.active === 1 ? "" : "s"}` : "No saved preferences"}
+            </Link>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-5" aria-live="polite">
           {loadingConvo ? (

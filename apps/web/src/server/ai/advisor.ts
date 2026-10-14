@@ -9,6 +9,7 @@ import { ADVISOR_SYSTEM_PROMPT, ARTICLE_SUMMARY_PROMPT } from "./prompts";
 import { llm } from "./providers";
 import { runTool, type ToolContext } from "./tools";
 import { proposeChanges, serializeAction } from "../services/advisor-actions";
+import { activeMemory, markMemoryUsed } from "../services/memory";
 
 export interface AdvisorStatus {
   mode: "llm" | "builtin";
@@ -60,11 +61,15 @@ export async function sendAdvisorMessage(userId: string, ctx: Omit<ToolContext, 
   if (status.mode === "llm") {
     try {
       const p = llm()!;
+      // Saved preferences the user chose to keep (enabled items only) give the model continuity.
+      const memory = await activeMemory(userId);
+      await markMemoryUsed(userId, memory.map((m) => m.id));
+      const memoryContext = memory.length ? `\n[Saved preferences the user asked VELTRIX to remember (use when relevant; they can change them at /app/memory):\n${memory.map((m) => `- ${m.text}`).join("\n")}]` : "";
       const result = await p.runToolConversation({
         system: ADVISOR_SYSTEM_PROMPT,
         history: [
           ...history.map((h) => ({ role: h.role === "USER" ? ("user" as const) : ("assistant" as const), content: h.content })),
-          { role: "user", content: `[Context: today is ${todayIn(ctx.timezone)}; base currency ${ctx.currency}]\n\n${input.message}` },
+          { role: "user", content: `[Context: today is ${todayIn(ctx.timezone)}; base currency ${ctx.currency}]${memoryContext}\n\n${input.message}` },
         ],
         executeTool: async (name, toolInput) => {
           // userId comes from the authenticated session, never from the model.

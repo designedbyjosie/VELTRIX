@@ -30,6 +30,8 @@ export type AuditType =
   | "data.csv_imported"
   | "setup.completed"
   | "advisor.change_applied"
+  | "memory.saved"
+  | "memory.deleted"
   | "consent.changed"
   | "security.rate_limited"
   | "security.origin_rejected";
