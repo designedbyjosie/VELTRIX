@@ -1,12 +1,12 @@
 import { Suspense } from "react";
-import { Link2 } from "lucide-react";
 import { requireUser } from "@/server/current-user";
 import { listAccounts, netWorthHistory, netWorthNow } from "@/server/services/accounts";
-import { integrationStatuses } from "@/server/providers/integrations";
+import { plaidConfigured } from "@/server/providers/plaid";
+import { BankConnections } from "@/components/overview/bank-connections";
 import { addDays, todayIn } from "@/server/dates";
 import { AccountsManager } from "@/components/overview/accounts-manager";
 import { AreaTrend } from "@/components/charts";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 
@@ -15,7 +15,6 @@ export const metadata = { title: "Financial overview" };
 export default async function OverviewPage() {
   const user = await requireUser();
   const [nw, accounts, history] = await Promise.all([netWorthNow(user.id, user.baseCurrency), listAccounts(user.id), netWorthHistory(user.id, user.baseCurrency, addDays(todayIn(user.timezone), -400))]);
-  const aggregator = integrationStatuses().find((i) => i.id === "aggregator")!;
   const byType = new Map<string, number>();
   for (const a of accounts.filter((x) => x.currency === user.baseCurrency)) byType.set(a.type, (byType.get(a.type) ?? 0) + a.balanceCents);
   return (
@@ -64,16 +63,7 @@ export default async function OverviewPage() {
             )}
           </Card>
           <Card title="Bank connections">
-            <div className="flex items-start gap-3">
-              <Link2 className="mt-0.5 size-5 shrink-0 text-ink3" aria-hidden />
-              <div className="text-sm">
-                <p className="flex items-center gap-2">
-                  Automatic sync <Badge tone="neutral">Not configured</Badge>
-                </p>
-                <p className="mt-1 text-ink2">Connecting banks requires an account-aggregation provider and its official consent flow. VELTRIX never asks for your bank username or password.</p>
-                <p className="mt-2 text-xs text-ink3">Until then: add accounts manually and import CSV statements. Configure via {aggregator.envVars.join(", ")}.</p>
-              </div>
-            </div>
+            <BankConnections configured={plaidConfigured()} />
           </Card>
         </div>
       </div>

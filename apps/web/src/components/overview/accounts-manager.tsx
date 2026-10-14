@@ -145,13 +145,16 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }) {
                             </p>
                             <p className="text-xs text-ink3">
                               {titleCase(a.type)}
-                              {a.institution ? ` · ${a.institution}` : ""} · updated {relativeTime(a.balanceAsOf)} · {a.source === "MANUAL" ? "entered manually" : titleCase(a.source)}
+                              {a.institution ? ` · ${a.institution}` : ""} · updated {relativeTime(a.balanceAsOf)} · {a.source === "MANUAL" ? "entered manually" : a.source === "AGGREGATOR" ? "synced from your bank" : titleCase(a.source)}
                             </p>
                           </div>
                           <p className={`num text-right font-semibold ${a.isLiability ? "text-neg" : "text-ink"}`}>
                             {a.isLiability ? "−" : ""}
                             {money(a.balanceCents, a.currency)}
                           </p>
+                          {a.source === "AGGREGATOR" ? (
+                            <Badge tone="info" title="Balance and transactions sync from your bank. Manage it under Bank connections.">Linked</Badge>
+                          ) : (
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => setEditing(a)} aria-label={`Edit ${a.name}`}>
                               <Pencil className="size-3.5" />
@@ -169,6 +172,7 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }) {
                               Delete
                             </ConfirmButton>
                           </div>
+                          )}
                         </li>
                       ))}
                     </ul>

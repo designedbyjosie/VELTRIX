@@ -53,7 +53,7 @@ describe("Finnhub provider", () => {
   });
 
   it("uses the history fallback when candles aren't on the plan, and returns no fake history otherwise", async () => {
-    const fallback: MarketDataProvider = { ...new NoMarketData(), history: async () => [{ date: "2026-10-13", close: 230 }] };
+    const fallback: MarketDataProvider = Object.assign(new NoMarketData(), { history: async () => [{ date: "2026-10-13", close: 230 }] });
     expect(await new FinnhubProvider("k", fallback, mockFetch(fixtures).fn).history("AAPL", "1M")).toEqual([{ date: "2026-10-13", close: 230 }]);
     expect(await new FinnhubProvider("k2", null, mockFetch(fixtures).fn).history("MSFT", "1M")).toEqual([]);
   });

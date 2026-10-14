@@ -6,7 +6,9 @@ const isDev = process.env.NODE_ENV !== "production";
 // 'unsafe-inline' is required for scripts unless nonces are adopted.
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  // cdn.plaid.com: Plaid Link, the bank's own secure sign-in window for connecting accounts.
+  `script-src 'self' 'unsafe-inline' https://cdn.plaid.com${isDev ? " 'unsafe-eval'" : ""}`,
+  "frame-src https://cdn.plaid.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' https: data: blob:",
   "font-src 'self' data:",
