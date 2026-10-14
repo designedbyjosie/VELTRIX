@@ -109,6 +109,14 @@ static/manifest.template.json   host permission = VELTRIX_API_URL origin (set at
 - **AlphaVantageProvider** maps the provider's endpoints defensively and caches responses.
 - **DemoMarketProvider** (simulated, labeled demo) is used only when explicitly selected, e.g. by the test suite.
 
+## Financial profile and plan engine
+
+- **Profile** (`services/twin.ts`) assembles monthly income, essential and discretionary spending (last 3 full months of transactions, falling back to budget limits), cash, investments, debts with user-entered terms, goals and 30-day commitments. Each figure is a `Figure` with `source` (bank, imported, entered, budget, estimated, missing), `basis`, `asOf` and `stale`. It also returns a data-quality issue list. Planning assumptions live in `UserProfile.planningAssumptions` and are edited in the What-if Lab.
+- **Engine** (`packages/shared/src/finance/scenario.ts`, `decision.ts`) is pure and deterministic. It does a monthly simulation with one-time, income, expense, extra-saving, extra-debt and financed-purchase changes; expected/best/adverse cases; plan comparison; driver attribution; stress-test changes and preparation steps; and the purchase decision rules. The server always builds the baseline itself, so clients only send changes.
+- **Saved plans** (`PlanSnapshot`) store the baseline, assumptions, changes and projection, and are never modified. `comparePlanWithActual` reads balance history (`AccountBalance`), transactions and goal contributions for elapsed months, and re-projects goals from today's profile.
+- **Advisor tools** `get_financial_profile`, `run_what_if`, `review_purchase` and `stress_test` call the same services. The built-in parser `ai/whatif.ts` maps common what-if phrasings onto them, and results link to `/app/plan`.
+- **Extension:** product analyses include the purchase review (`product.decision`), computed with the same engine.
+
 ## Guided setup and dashboard layout
 
 - `/app/setup` walks a new user through either path: **Connect my bank** (Plaid Link, then income, budget and goal, prefilled from the linked history via `GET /api/setup`) or **Enter it myself** (accounts, income with pay frequency, monthly spending per category, a goal). `POST /api/setup` saves everything at once and marks `onboardingCompletedAt`.

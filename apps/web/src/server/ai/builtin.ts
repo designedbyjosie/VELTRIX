@@ -8,10 +8,11 @@ import { runTool, type ToolContext } from "./tools";
 import { parseChangeRequests } from "./intents";
 import { editableItems } from "../services/advisor-actions";
 import { todayIn } from "../dates";
+import { parseWhatIf } from "./whatif";
 
 export interface BuiltinAnswer {
   text: string;
-  tools: { name: string; label: string; provenance: string[] }[];
+  tools: { name: string; label: string; provenance: string[]; link?: { label: string; href: string } }[];
 }
 
 // Tool payloads are loosely typed JSON produced by tools.ts.
@@ -34,9 +35,93 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
   const used: BuiltinAnswer["tools"] = [];
   const call = async (name: string, input: unknown = {}) => {
     const r = await runTool(ctx, name, input);
-    used.push({ name, label: r.label, provenance: r.provenance });
+    used.push({ name, label: r.label, provenance: r.provenance, link: r.link });
     return r.data as Data;
   };
+
+  // "What if" questions run the plan engine.
+  const whatIf = parseWhatIf(question, Number(todayIn(ctx.timezone).slice(5, 7)));
+  if (whatIf) {
+    const projectionNote = "These are projections from your recent averages and saved assumptions, not predictions.";
+    const gaps = (d: Data) => (d.canProject === false || d.confidence === "limited" ? ["", "To project this properly, VELTRIX needs your monthly income and spending. Add them in guided setup or tell me “I make $… a month”."] : []);
+    if (whatIf.type === "profile") {
+      const d = await call("get_financial_profile");
+      const line = (label: string, f: Data, suffix = "") => bullet(`${label}: ${f.amount ?? "unknown"}${f.amount ? suffix : ""} (${f.source === "missing" ? "missing" : f.source === "entered" ? "you entered" : f.source === "bank" ? "bank sync" : f.source === "budget" ? "from your budget" : f.source === "imported" ? "your transactions" : "calculated"})`);
+      return {
+        text: [
+          "Here's your financial picture:",
+          line("Monthly income", d.monthlyIncome, "/mo"),
+          line("Essential spending", d.essentialSpending, "/mo"),
+          line("Discretionary spending", d.discretionarySpending, "/mo"),
+          line("Left after spending", d.surplusBeforeGoals, "/mo"),
+          line("Cash", d.cash),
+          line("Debt", d.debt),
+          d.reserveCoverageMonths !== null ? bullet(`Reserves cover ${d.reserveCoverageMonths} months of essentials (your target: ${d.reserveTargetMonths}).`) : "",
+          ...(d.dataGaps.length ? ["", "To make this more accurate:", ...d.dataGaps.slice(0, 4).map(bullet)] : []),
+        ].filter((x) => x !== "").join("\n"),
+        tools: used,
+      };
+    }
+    if (whatIf.type === "purchase") {
+      const d = await call("review_purchase", { item: whatIf.label, price: whatIf.priceCents / 100, financing_months: whatIf.financing?.months, apr: whatIf.financing?.aprPercent, wait_months: whatIf.waitMonths });
+      return {
+        text: [
+          `${d.verdict} — ${whatIf.label}:`,
+          ...d.reasons.map(bullet),
+          "",
+          "Your options:",
+          ...d.options.map((o: Data) => bullet(`${o.option}: lowest cash ${o.lowestCash}, net worth in 2 years ${o.netWorthIn2Years}${o.interest ? `, ${o.interest} interest` : ""}${o.goalEffects.length ? ` (${o.goalEffects.join("; ")})` : ""}`)),
+          d.monthsToSaveFromSurplus ? `Saving your monthly surplus, you could pay cash in about ${d.monthsToSaveFromSurplus} month${d.monthsToSaveFromSurplus === 1 ? "" : "s"}.` : "",
+          ...gaps(d),
+          "It's your call. This shows trade-offs against the goals you've set, not a judgment.",
+        ].filter((x) => x !== "").join("\n"),
+        tools: used,
+      };
+    }
+    if (whatIf.type === "scenario") {
+      const d = await call("run_what_if", {
+        changes: whatIf.changes.map((c) => ({
+          kind: c.kind,
+          label: c.label,
+          amount: "amountCents" in c && c.amountCents !== undefined ? c.amountCents / 100 : undefined,
+          percent: "percent" in c ? c.percent : undefined,
+          start_month: "month" in c ? c.month : "startMonth" in c ? c.startMonth : 0,
+          months: "months" in c ? c.months : undefined,
+          bucket: "bucket" in c ? c.bucket : undefined,
+          apr: "aprPercent" in c ? c.aprPercent : undefined,
+        })),
+      });
+      if (d.error) return { text: "I couldn't model that change. Try the What-if Lab, where you can set it up step by step.", tools: used };
+      const goalLines = d.goals.filter((g: Data) => g.monthsLater || g.lessSavedByEnd || g.nowMissesTargetDate).map((g: Data) => bullet(`${g.goal}: ${g.monthsLater ? `${g.monthsLater > 0 ? `${g.monthsLater} month(s) later` : `${-g.monthsLater} month(s) sooner`}` : g.lessSavedByEnd ? `${g.lessSavedByEnd} less saved by ${d.horizonEnds}` : ""}${g.nowMissesTargetDate ? " — would miss its target date" : ""}`));
+      return {
+        text: [
+          `If ${whatIf.changes.map((c) => c.label.toLowerCase()).join(" and ")}, here's the projection to ${d.horizonEnds}:`,
+          bullet(`Cash at the end: ${d.scenario.endCash} (vs ${d.currentPath.endCash} on your current path; range ${d.range.endCashAdverse}–${d.range.endCashBest} depending on spending)`),
+          bullet(`Lowest point: ${d.scenario.lowestCash} in ${d.scenario.lowestCashMonth}${d.scenario.cashRunsOutMonth ? ` — cash would run out around ${d.scenario.cashRunsOutMonth}` : ""}`),
+          bullet(`Net worth at the end: ${d.scenario.endNetWorth} (vs ${d.currentPath.endNetWorth})`),
+          ...goalLines,
+          ...gaps(d),
+          projectionNote,
+        ].join("\n"),
+        tools: used,
+      };
+    }
+    const d = await call("stress_test", { income_loss_months: whatIf.incomeLossMonths, income_replacement_pct: whatIf.incomeReplacementPct, unexpected_cost: whatIf.emergencyCostCents / 100, essential_increase_per_month: whatIf.essentialIncreaseCents / 100, discretionary_cut_pct: whatIf.discretionaryCutPct });
+    return {
+      text: [
+        d.cashRunsOutMonth ? `In that situation, your cash would run out around ${d.cashRunsOutMonth}.` : "Your reserves would hold through that situation.",
+        d.reservesCoverEssentialsWithNoIncomeMonths !== null ? bullet(`With no income at all, your cash covers about ${d.reservesCoverEssentialsWithNoIncomeMonths} months of essential spending.`) : "",
+        bullet(`Lowest cash point: ${d.lowestCash}; the hard period costs about ${d.costVsNormalOver12Months} over 12 months compared with normal.`),
+        d.goalsAffected.length ? bullet(`Goals affected: ${d.goalsAffected.join(", ")}`) : "",
+        "",
+        "How to prepare:",
+        ...d.preparationSteps.slice(0, 4).map(bullet),
+        ...gaps(d),
+        "This is a hypothetical to help you prepare, not a prediction.",
+      ].filter((x) => x !== "").join("\n"),
+      tools: used,
+    };
+  }
 
   // Requests to change data or the dashboard become proposals the user can apply.
   if (ctx.propose) {
@@ -198,6 +283,11 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
       bullet("My checking balance is $2,500"),
       bullet("I want to save $5,000 for a car by June 2027"),
       bullet("Hide investments from my dashboard"),
+      "",
+      "And explore decisions before you make them:",
+      bullet("What if I buy a $1,500 laptop?"),
+      bullet("What if my income drops 15%?"),
+      bullet("Stress-test my finances if I lose my job for 3 months"),
     ].join("\n"),
     tools: used,
   };

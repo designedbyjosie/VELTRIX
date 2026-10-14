@@ -49,7 +49,7 @@ export async function sendAdvisorMessage(userId: string, ctx: Omit<ToolContext, 
     },
   };
   const status = await advisorStatus(userId);
-  const evidence: { name: string; label: string; provenance: string[] }[] = [];
+  const evidence: { name: string; label: string; provenance: string[]; link?: { label: string; href: string } }[] = [];
   let text: string;
   let provider = "builtin";
   let model: string | null = null;
@@ -69,7 +69,7 @@ export async function sendAdvisorMessage(userId: string, ctx: Omit<ToolContext, 
         executeTool: async (name, toolInput) => {
           // userId comes from the authenticated session, never from the model.
           const r = await runTool(toolCtx, name, toolInput);
-          evidence.push({ name, label: r.label, provenance: r.provenance });
+          evidence.push({ name, label: r.label, provenance: r.provenance, link: r.link });
           return r.data;
         },
       });

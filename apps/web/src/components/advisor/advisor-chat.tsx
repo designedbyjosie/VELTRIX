@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Check, Database, LayoutDashboard, MessageSquarePlus, Send, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { Bot, Check, Database, FlaskConical, LayoutDashboard, MessageSquarePlus, Send, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { Badge, Button, FormError, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 
 interface Evidence {
-  tools: { name: string; label: string; provenance: string[] }[];
+  tools: { name: string; label: string; provenance: string[]; link?: { label: string; href: string } }[];
   mode: "builtin" | "llm";
   fallbackNote: string | null;
 }
@@ -45,7 +45,7 @@ const PROVENANCE: Record<string, { label: string; tone: "info" | "pos" | "warn" 
   education: { label: "General education", tone: "neutral" },
 };
 
-const SUGGESTIONS = ["Where did my money go this month?", "Which categories are over budget?", "How much could I save by reducing subscriptions?", "How am I progressing toward my emergency fund?", "Compare VOO and QQQ", "Can I afford a $350 purchase?"];
+const SUGGESTIONS = ["Where did my money go this month?", "Which categories are over budget?", "What if I buy a $1,500 laptop?", "What if my income drops 15%?", "Stress-test my finances if I lose my job for 3 months", "Compare VOO and QQQ"];
 const CHANGE_SUGGESTIONS = ["Set my food budget to $400", "I make $4,000 a month", "I want to save $5,000 for a car by June 2027", "Move my goals to the top of my dashboard"];
 
 /** Changes the advisor proposed. Each takes effect only when the user applies it. */
@@ -298,6 +298,15 @@ export function AdvisorChat({ status, conversations: initialConvos }: { status: 
                   <div className={m.role === "user" ? "max-w-[80%] rounded-[14px] rounded-br-[4px] bg-blue/20 px-4 py-2.5 text-sm" : "min-w-0 flex-1 text-sm leading-relaxed text-ink"}>
                     <Content text={m.content} />
                     {m.role === "assistant" && !!m.actions?.length && <ProposedChanges actions={m.actions} />}
+                    {m.role === "assistant" && m.evidence?.tools.some((t) => t.link?.href.startsWith("/app/")) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {[...new Map(m.evidence.tools.filter((t) => t.link?.href.startsWith("/app/")).map((t) => [t.link!.href, t.link!])).values()].map((l) => (
+                          <Link key={l.href} href={l.href} className="inline-flex items-center gap-1.5 rounded-full border border-blue/50 bg-blue/10 px-3 py-1.5 text-xs text-ink hover:border-blue">
+                            <FlaskConical className="size-3.5 text-cyan" aria-hidden /> {l.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                     {m.role === "assistant" && m.evidence && (
                       <div className="mt-3 rounded-[10px] border border-line-soft bg-bg2/60 p-3">
                         <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-ink3">

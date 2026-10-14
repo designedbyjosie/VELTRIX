@@ -7,7 +7,8 @@
 import type { Cents } from "../money";
 import { comparePlans, runScenario, type PlanAssumptions, type PlanBaseline, type PlanComparison, type PlanSummary, type ScenarioChange } from "./scenario";
 
-export type DecisionVerdict = "fits" | "consider" | "risk";
+/** "unknown" = not enough information to review against the user's plan. */
+export type DecisionVerdict = "fits" | "consider" | "risk" | "unknown";
 
 export interface PurchaseInput {
   label: string;
@@ -23,6 +24,8 @@ export interface PurchaseInput {
   /** Expected uses per month, for cost-per-use. */
   usesPerMonth?: number | null;
   horizonMonths?: number;
+  /** False when VELTRIX has no cash balance for the user (no accounts). */
+  cashKnown?: boolean;
 }
 
 export interface DecisionReason {
@@ -55,6 +58,8 @@ export interface PurchaseDecision {
 export function evaluatePurchase(baseline: PlanBaseline, assumptions: PlanAssumptions, input: PurchaseInput, fmt: (c: Cents) => string): PurchaseDecision {
   const horizon = input.horizonMonths ?? 24;
   const missing: string[] = [];
+  const cashKnown = input.cashKnown !== false;
+  if (!cashKnown) missing.push("available cash");
   if (baseline.monthlyIncomeCents <= 0) missing.push("monthly income");
   if (baseline.essentialCents + baseline.discretionaryCents <= 0) missing.push("monthly spending");
   const confidence = missing.length ? "limited" : "normal";
@@ -84,8 +89,10 @@ export function evaluatePurchase(baseline: PlanBaseline, assumptions: PlanAssump
   const reserveAfter = baseline.liquidCents - input.priceCents;
 
   // Goal at risk
-  if (now.vsSkip.newlyNegative) reasons.push({ code: "reserves_negative", severity: "risk", text: `Projected reserves would fall below zero in month ${now.summary.firstNegativeMonth! + 1}, which they don't without this purchase.` });
-  if (reserveAfter < 0) reasons.push({ code: "exceeds_reserves", severity: "risk", text: `The price (${fmt(input.priceCents)}) is more than your available cash today (${fmt(baseline.liquidCents)}).` });
+  if (cashKnown && now.vsSkip.newlyNegative) reasons.push({ code: "reserves_negative", severity: "risk", text: `Projected reserves would fall below zero in month ${now.summary.firstNegativeMonth! + 1}, which they don't without this purchase.` });
+  if (!cashKnown) {
+    /* cash-based checks need a balance */
+  } else if (reserveAfter < 0) reasons.push({ code: "exceeds_reserves", severity: "risk", text: `The price (${fmt(input.priceCents)}) is more than your available cash today (${fmt(baseline.liquidCents)}).` });
   else if (oneMonthEssential > 0 && reserveAfter < oneMonthEssential) reasons.push({ code: "below_one_month", severity: "risk", text: `After buying, cash would be ${fmt(reserveAfter)}, less than one month of essential spending (${fmt(oneMonthEssential)}).` });
   for (const g of now.vsSkip.goalDelays) if (g.becameOffTrack) reasons.push({ code: "goal_off_track", severity: "risk", text: `"${g.name}" would no longer be reached by its target date.` });
 
@@ -99,7 +106,7 @@ export function evaluatePurchase(baseline: PlanBaseline, assumptions: PlanAssump
     reasons.push({ code: "over_category_budget", severity: "consider", text: `It's more than what's left in this category's budget this month (${fmt(Math.max(0, input.categoryRemainingCents))}).` });
   }
   const target = oneMonthEssential * assumptions.emergencyMonths;
-  if (target > 0 && reserveAfter >= oneMonthEssential && reserveAfter < target && baseline.liquidCents >= target) {
+  if (cashKnown && target > 0 && reserveAfter >= oneMonthEssential && reserveAfter < target && baseline.liquidCents >= target) {
     reasons.push({ code: "below_reserve_target", severity: "consider", text: `Cash would drop below your ${assumptions.emergencyMonths}-month reserve target (${fmt(target)}).` });
   }
   const financed = options.find((o) => o.key === "financed");
@@ -108,8 +115,15 @@ export function evaluatePurchase(baseline: PlanBaseline, assumptions: PlanAssump
   if (alt && input.alternative && input.alternative.priceCents <= input.priceCents * 0.9) {
     reasons.push({ code: "cheaper_option", severity: "consider", text: `${input.alternative.label} costs ${fmt(input.priceCents - input.alternative.priceCents)} less${input.alternative.verified ? " (verified price)" : ""}.` });
   }
-  if (!now.vsSkip.newlyNegative && now.adverse.firstNegativeMonth !== null && skip.adverse.firstNegativeMonth === null) {
+  if (cashKnown && !now.vsSkip.newlyNegative && now.adverse.firstNegativeMonth !== null && skip.adverse.firstNegativeMonth === null) {
     reasons.push({ code: "adverse_negative", severity: "consider", text: "If spending runs higher than usual, reserves could dip below zero within the plan period." });
+  }
+
+  // Not enough to go on: no balance and no cash-flow picture.
+  if (!cashKnown && confidence === "limited" && !reasons.length) {
+    reasons.push({ code: "not_enough_data", severity: "fits", text: "VELTRIX doesn't have your cash balance, income or spending yet, so it can't check this against your plan." });
+    const costPerUse = input.usesPerMonth && input.usesPerMonth > 0 ? Math.round(input.priceCents / (input.usesPerMonth * 12)) : null;
+    return { verdict: "unknown", confidence, reasons, options, missing, costPerUseCents: costPerUse, monthsToSaveFor };
   }
 
   // Fits

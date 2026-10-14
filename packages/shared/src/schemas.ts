@@ -304,6 +304,8 @@ export interface ExtensionAnalysis {
     verdict: { label: string; tone: "positive" | "neutral" | "warning"; basis: string } | null;
     budget: { categoryName: string; remainingCents: number; limitCents: number; currency: string } | null;
     alternatives: { title: string; merchant: string; priceCents: number; currency: string; url: string; observedAt: string }[];
+    /** Think-before-you-spend review against the user's plan; null when it can't be computed. */
+    decision?: { verdict: "fits" | "consider" | "risk" | "unknown"; title: string; reasons: string[]; limited: boolean; reviewPath: string } | null;
   };
   instruments?: {
     symbol: string;
@@ -443,6 +445,6 @@ export const planSnapshotCreateSchema = z.object({
   kind: z.enum(["scenario", "purchase", "stress"]),
   changes: z.array(scenarioChangeSchema).max(12),
   horizonMonths: z.number().int().min(3).max(120).default(24),
-  decision: z.object({ label, priceCents: posCents, verdict: z.enum(["fits", "consider", "risk"]), choice: z.enum(["buy_now", "buy_later", "alternative", "financed", "skip", "undecided"]) }).nullable().optional(),
+  decision: z.object({ label, priceCents: posCents, verdict: z.enum(["fits", "consider", "risk", "unknown"]), choice: z.enum(["buy_now", "buy_later", "alternative", "financed", "skip", "undecided"]) }).nullable().optional(),
   note: shortText(500).optional().default(""),
 });

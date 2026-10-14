@@ -22,7 +22,9 @@ import { listInsights } from "../services/insights";
 import { listArticles } from "../services/articles";
 import { marketData } from "../providers/market";
 import { editableItems, type ProposalResult } from "../services/advisor-actions";
-import { accountTypes, budgetCategorySlugs, DASHBOARD_WIDGET_IDS, goalKinds, MAX_CHANGES_PER_PROPOSAL } from "@veltrix/shared";
+import { accountTypes, budgetCategorySlugs, DASHBOARD_WIDGET_IDS, goalKinds, MAX_CHANGES_PER_PROPOSAL, scenarioChangeSchema, type ScenarioChange } from "@veltrix/shared";
+import { buildProfile } from "../services/twin";
+import { decidePurchase, runWhatIf, stressTest } from "../services/plan";
 
 export interface ToolContext {
   userId: string;
@@ -37,6 +39,8 @@ export interface ToolResult {
   provenance: DataProvenance[];
   /** Short human-readable description of what was looked up (shown as evidence). */
   label: string;
+  /** Where the user can see the full result in the app. */
+  link?: { label: string; href: string };
 }
 
 export interface AdvisorTool<I = unknown> {
@@ -278,7 +282,7 @@ export const TOOLS: AdvisorTool<any>[] = [
   },
   {
     name: "evaluate_purchase",
-    description: "How a purchase of a given amount would affect this month's budget for a category and the user's savings goals. Calculated deterministically.",
+    description: "Quick check of how a purchase amount affects this month's category budget and remaining goal amount. Prefer review_purchase for a full decision review.",
     input: z.object({ amount: z.string().regex(/^\d{1,9}(\.\d{1,2})?$/), category: z.string().max(40).optional() }),
     jsonSchema: { type: "object", properties: { amount: { type: "string", description: "Decimal amount, e.g. 348.00" }, category: { type: "string", description: "Spending category name, e.g. Shopping" } }, required: ["amount"], additionalProperties: false },
     async run(ctx, input) {
@@ -406,6 +410,229 @@ export const TOOLS: AdvisorTool<any>[] = [
         label: `Proposed ${r.proposed.length} change${r.proposed.length === 1 ? "" : "s"}`,
         provenance: ["user"],
         data: { proposed: r.proposed.map((p) => p.summary), rejected: r.rejected, note: "These are NOT applied yet. Tell the user to review them and click Apply." },
+      };
+    },
+  },
+
+  {
+    name: "get_financial_profile",
+    description: "The user's financial picture used for planning: monthly income, essential and discretionary spending, surplus, cash, investments, debt, reserve coverage, upcoming 30-day commitments and data gaps. Every figure includes its source (bank sync, imported, user-entered, budget, calculated or missing) and how it was calculated.",
+    input: z.object({}),
+    jsonSchema: noArgs,
+    async run(ctx) {
+      const p = await buildProfile(ctx.userId, ctx);
+      const f = (x: { cents: number | null; source: string; basis: string; stale: boolean }) => ({ amount: x.cents === null ? null : formatMoney(x.cents, ctx.currency), source: x.source, basis: x.basis, stale: x.stale });
+      return {
+        label: "Your financial picture",
+        provenance: ["user", "estimate"],
+        link: { label: "Open My picture", href: "/app/plan?tab=profile" },
+        data: {
+          monthlyIncome: f(p.figures.income),
+          essentialSpending: f(p.figures.essential),
+          discretionarySpending: f(p.figures.discretionary),
+          surplusBeforeGoals: f(p.figures.surplus),
+          plannedGoalSavingPerMonth: formatMoney(p.figures.goalSavingCents, ctx.currency),
+          cash: f(p.figures.liquid),
+          investments: f(p.figures.investments),
+          debt: f(p.figures.debt),
+          reserveCoverageMonths: p.figures.reserveMonths,
+          reserveTargetMonths: p.assumptions.emergencyMonths,
+          topCategories: p.categories.slice(0, 8).map((c) => ({ category: c.name, monthly: formatMoney(c.monthlyCents, ctx.currency), essential: c.essential })),
+          next30Days: p.commitments.map((c) => ({ merchant: c.merchant, amount: formatMoney(c.amountCents, ctx.currency), due: c.due, confirmed: c.confirmed })),
+          dataGaps: p.issues.map((i) => i.message),
+          canProject: p.canProject,
+        },
+      };
+    },
+  },
+  {
+    name: "run_what_if",
+    description: "Project the user's cash reserves, net worth, debt and goal dates under hypothetical changes, compared with their current path, with best/adverse ranges. Use for 'what if…' questions about income changes, job loss, rent increases, spending cuts, saving more, extra debt payments, trips, delayed or financed purchases. Amounts are dollars. Results are projections under stated assumptions, not predictions.",
+    input: z.object({
+      changes: z
+        .array(
+          z.object({
+            kind: z.enum(["one_time", "income", "expense", "extra_saving", "extra_debt_payment", "financed_purchase"]),
+            label: z.string().min(1).max(80),
+            amount: z.number().optional(),
+            percent: z.number().optional(),
+            start_month: z.number().int().min(0).max(119).optional(),
+            months: z.number().int().min(1).max(120).nullable().optional(),
+            bucket: z.enum(["essential", "discretionary"]).optional(),
+            apr: z.number().min(0).max(100).optional(),
+          }),
+        )
+        .min(1)
+        .max(8),
+      horizon_months: z.number().int().min(6).max(60).default(24),
+    }),
+    jsonSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["changes"],
+      properties: {
+        horizon_months: { type: "integer", description: "Months to project (6–60, default 24)" },
+        changes: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["kind", "label"],
+            additionalProperties: false,
+            properties: {
+              kind: { type: "string", enum: ["one_time", "income", "expense", "extra_saving", "extra_debt_payment", "financed_purchase"], description: "one_time: purchase/trip/repair (amount; negative = windfall). income: percent and/or monthly amount change. expense: essential or discretionary change by percent or monthly amount. extra_saving / extra_debt_payment: monthly amount. financed_purchase: amount, months, apr." },
+              label: { type: "string" },
+              amount: { type: "number", description: "Dollars (one-time total, or per month for recurring kinds)" },
+              percent: { type: "number", description: "For income/expense, e.g. -15" },
+              start_month: { type: "integer", description: "Months from now (0 = now)" },
+              months: { type: ["integer", "null"], description: "Duration for income/expense (null = permanent); repayment months for financed_purchase" },
+              bucket: { type: "string", enum: ["essential", "discretionary"] },
+              apr: { type: "number" },
+            },
+          },
+        },
+      },
+    },
+    async run(ctx, input) {
+      const changes: ScenarioChange[] = [];
+      const errors: string[] = [];
+      for (const c of input.changes) {
+        const cents = c.amount === undefined ? undefined : Math.round(c.amount * 100);
+        const start = c.start_month ?? 0;
+        const candidate =
+          c.kind === "one_time" ? { kind: c.kind, label: c.label, amountCents: cents ?? 0, month: start }
+          : c.kind === "income" ? { kind: c.kind, label: c.label, percent: c.percent, amountCents: cents, startMonth: start, months: c.months ?? null }
+          : c.kind === "expense" ? { kind: c.kind, label: c.label, bucket: c.bucket ?? "discretionary", percent: c.percent, amountCents: cents, startMonth: start, months: c.months ?? null }
+          : c.kind === "financed_purchase" ? { kind: c.kind, label: c.label, amountCents: cents ?? 0, months: c.months ?? 12, aprPercent: c.apr ?? 0, startMonth: start }
+          : { kind: c.kind, label: c.label, amountCents: cents ?? 0, startMonth: start };
+        const parsed = scenarioChangeSchema.safeParse(candidate);
+        if (parsed.success) changes.push(parsed.data as ScenarioChange);
+        else errors.push(`${c.label}: ${parsed.error.issues[0]?.message ?? "invalid"}`);
+      }
+      if (!changes.length) return { label: "What-if projection", provenance: [], data: { error: "No valid changes", details: errors } };
+      const r = await runWhatIf(ctx.userId, { changes, horizonMonths: input.horizon_months }, ctx);
+      const m = (c: number) => formatMoney(c, ctx.currency);
+      const monthName = (n: number) => addMonths(r.startMonth, n);
+      return {
+        label: `What-if: ${changes.map((c) => c.label).join(", ")}`,
+        provenance: ["user", "estimate"],
+        link: { label: "Explore in the What-if Lab", href: "/app/plan?tab=whatif" },
+        data: {
+          canProject: r.canProject,
+          missingData: r.missing,
+          horizonEnds: monthName(r.scenario.summary.horizonMonths - 1),
+          scenario: { endCash: m(r.scenario.summary.endLiquidCents), lowestCash: m(r.scenario.summary.lowestLiquid.cents), lowestCashMonth: monthName(r.scenario.summary.lowestLiquid.month), cashRunsOutMonth: r.scenario.summary.firstNegativeMonth === null ? null : monthName(r.scenario.summary.firstNegativeMonth), endNetWorth: m(r.scenario.summary.endNetWorthCents), interest: m(r.scenario.summary.totalInterestCents) },
+          currentPath: { endCash: m(r.baseline.summary.endLiquidCents), lowestCash: m(r.baseline.summary.lowestLiquid.cents), endNetWorth: m(r.baseline.summary.endNetWorthCents) },
+          range: { endCashAdverse: m(r.scenario.adverseSummary.endLiquidCents), endCashBest: m(r.scenario.bestSummary.endLiquidCents) },
+          goals: r.comparison.goalDelays.map((g) => ({ goal: g.name, monthsLater: g.delayMonths, lessSavedByEnd: g.delayMonths === null && g.endSavedDeltaCents < 0 ? m(-g.endSavedDeltaCents) : null, nowMissesTargetDate: g.becameOffTrack })),
+          drivers: r.drivers.map((d) => ({ change: d.label, netWorthEffect: m(d.endNetWorthDeltaCents) })),
+          assumptions: { ...r.assumptions, note: "Recent monthly averages repeat; goal contributions come from monthly surplus; interest only where an APR is known." },
+          skipped: errors,
+        },
+      };
+    },
+  },
+  {
+    name: "review_purchase",
+    description: "Think-before-you-spend review of a purchase: compares buying now, later, a cheaper option, financing and skipping using the user's cash, commitments, budget and goals. Returns an evidence-based verdict (fits / consider / risk) with reasons. Use for 'can I afford…', 'should I buy…', 'what if I buy…'. The user decides; never moralize.",
+    input: z.object({
+      item: z.string().min(1).max(80),
+      price: z.number().positive().max(100_000_000),
+      category: z.enum(budgetCategorySlugs).optional(),
+      financing_months: z.number().int().min(1).max(120).optional(),
+      apr: z.number().min(0).max(100).optional(),
+      alternative_label: z.string().max(80).optional(),
+      alternative_price: z.number().positive().optional(),
+      wait_months: z.number().int().min(1).max(24).optional(),
+    }),
+    jsonSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["item", "price"],
+      properties: {
+        item: { type: "string" },
+        price: { type: "number", description: "Dollars" },
+        category: { type: "string", enum: [...budgetCategorySlugs] },
+        financing_months: { type: "integer" },
+        apr: { type: "number" },
+        alternative_label: { type: "string" },
+        alternative_price: { type: "number" },
+        wait_months: { type: "integer" },
+      },
+    },
+    async run(ctx, input) {
+      const d = await decidePurchase(
+        ctx.userId,
+        {
+          label: input.item,
+          priceCents: Math.round(input.price * 100),
+          categorySlug: input.category ?? null,
+          financing: input.financing_months ? { months: input.financing_months, aprPercent: input.apr ?? 0 } : null,
+          alternative: input.alternative_price ? { label: input.alternative_label || "Cheaper option", priceCents: Math.round(input.alternative_price * 100) } : null,
+          waitMonths: input.wait_months,
+          horizonMonths: 24,
+        },
+        ctx,
+      );
+      const m = (c: number) => formatMoney(c, ctx.currency);
+      const verdict = { fits: "Fits your plan", consider: "Consider alternatives", risk: "Could put a goal at risk", unknown: "Not enough data to review" }[d.verdict];
+      return {
+        label: `Purchase review: ${input.item}`,
+        provenance: ["user", "estimate"],
+        link: { label: "See the full comparison", href: `/app/plan?tab=decide&item=${encodeURIComponent(input.item)}&price=${input.price}` },
+        data: {
+          verdict,
+          confidence: d.confidence,
+          missingData: d.missing,
+          reasons: d.reasons.map((r) => r.text),
+          monthsToSaveFromSurplus: d.monthsToSaveFor,
+          options: d.options.map((o) => ({ option: o.label, lowestCash: m(o.summary.lowestLiquid.cents), netWorthIn2Years: m(o.summary.endNetWorthCents), interest: o.vsSkip.interestDeltaCents > 0 ? m(o.vsSkip.interestDeltaCents) : null, goalEffects: o.vsSkip.goalDelays.filter((g) => g.delayMonths || g.endSavedDeltaCents < 0).map((g) => (g.delayMonths ? `${g.name}: ${g.delayMonths} month(s) later` : `${g.name}: ${m(-g.endSavedDeltaCents)} less saved`)) })),
+          note: "Present the trade-offs and let the user decide. Do not shame or moralize.",
+        },
+      };
+    },
+  },
+  {
+    name: "stress_test",
+    description: "Model a hard period: months without income (with optional partial replacement), an unexpected one-time cost, higher essential costs, and the discretionary cut the user would make. Returns how long reserves cover essentials, when cash would run out (if at all), goals affected and practical preparation steps. Hypothetical, not a prediction.",
+    input: z.object({
+      income_loss_months: z.number().int().min(0).max(24).default(0),
+      income_replacement_pct: z.number().min(0).max(100).default(0),
+      unexpected_cost: z.number().min(0).max(10_000_000).default(0),
+      essential_increase_per_month: z.number().min(0).max(1_000_000).default(0),
+      discretionary_cut_pct: z.number().min(0).max(100).default(0),
+    }),
+    jsonSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        income_loss_months: { type: "integer" },
+        income_replacement_pct: { type: "number" },
+        unexpected_cost: { type: "number", description: "Dollars" },
+        essential_increase_per_month: { type: "number", description: "Dollars per month" },
+        discretionary_cut_pct: { type: "number" },
+      },
+    },
+    async run(ctx, input) {
+      const r = await stressTest(
+        ctx.userId,
+        { incomeLossMonths: input.income_loss_months, incomeReplacementPct: input.income_replacement_pct, emergencyCostCents: Math.round(input.unexpected_cost * 100), essentialIncreaseCents: Math.round(input.essential_increase_per_month * 100), discretionaryCutPct: input.discretionary_cut_pct, horizonMonths: 12 },
+        ctx,
+      );
+      const m = (c: number) => formatMoney(c, ctx.currency);
+      return {
+        label: "Stress test",
+        provenance: ["user", "estimate"],
+        link: { label: "Open the stress test", href: "/app/plan?tab=stress" },
+        data: {
+          canProject: r.canProject,
+          reservesCoverEssentialsWithNoIncomeMonths: r.runway.noIncomeMonths,
+          cashRunsOutMonth: r.runway.firstNegativeMonth === null ? null : addMonths(r.startMonth, r.runway.firstNegativeMonth),
+          ifSpendingRunsHigherRunsOutMonth: r.runway.adverseFirstNegativeMonth === null ? null : addMonths(r.startMonth, r.runway.adverseFirstNegativeMonth),
+          lowestCash: m(r.stressed.summary.lowestLiquid.cents),
+          costVsNormalOver12Months: m(-r.comparison.endLiquidDeltaCents),
+          goalsAffected: r.comparison.goalDelays.filter((g) => g.delayMonths || g.becameOffTrack).map((g) => g.name),
+          preparationSteps: r.steps.map((s) => `${s.title}${s.impactCents ? ` (${m(s.impactCents)})` : ""}: ${s.detail}`),
+        },
       };
     },
   },

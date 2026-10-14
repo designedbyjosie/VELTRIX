@@ -112,6 +112,21 @@ function ProductView({ a, x }: { a: ExtensionAnalysis; x: PageExtraction }) {
           )}
         </div>
       </div>
+      {p.decision && (
+        <div className={`card decision verdict-${p.decision.verdict}`}>
+          <p className="decision-title">{p.decision.title}</p>
+          <ul>
+            {p.decision.reasons.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+          {p.decision.limited && <p className="muted small">Add your income and spending in VELTRIX for a full review.</p>}
+          <button className="link" onClick={() => send({ type: "open", path: p.decision!.reviewPath })}>
+            Compare buy now, later or skip →
+          </button>
+          <p className="muted tiny">Based on your VELTRIX plan. Your call, not a judgment.</p>
+        </div>
+      )}
       {p.historyStats && (
         <p className="muted small">
           {p.historyStats.count} recorded · low {money(p.historyStats.lowCents, p.currency)} · avg {money(p.historyStats.avgCents, p.currency)}

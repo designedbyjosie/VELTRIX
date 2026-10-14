@@ -30,6 +30,12 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/setup` | GET POST | session | Suggestions from linked data · save guided setup `{path, accounts[], monthlyIncome, budget[{category,limit}], goal}` |
 | `/api/settings/dashboard` | GET PATCH | session | `{layout: widget[]}`, ordered visible widgets |
 | `/api/advisor/actions/:id/apply`, `/dismiss` | POST | session | Apply or dismiss a proposed change. 409 if already handled or no longer valid, 410 if expired |
+| `/api/plan/profile` | GET | session | Financial profile with sources, issues, commitments |
+| `/api/plan/assumptions` | PATCH | session | Reserve months, returns, spending swing, essential categories, debt terms, excluded accounts (own accounts only) |
+| `/api/plan/scenario` | POST | session | `{changes[], horizonMonths}` → baseline vs scenario, ranges, goal delays, drivers |
+| `/api/plan/decision` | POST | session | `{label, priceCents, categorySlug?, alternative?, financing?, waitMonths?, usesPerMonth?}` → verdict, reasons, options |
+| `/api/plan/stress` | POST | session | `{incomeLossMonths, incomeReplacementPct, emergencyCostCents, essentialIncreaseCents, discretionaryCutPct}` → runway, steps |
+| `/api/plan/snapshots`, `/api/plan/snapshots/:id` | GET POST · GET DELETE | session | Saved plans; GET by id compares with actual results |
 | `/api/banks` | GET | session | `{configured, items}` |
 | `/api/banks/link-token` | POST | session | `{itemId?}` (update mode) → `{linkToken}` |
 | `/api/banks/exchange` | POST | session | `{publicToken}` → links item, imports accounts and transactions |

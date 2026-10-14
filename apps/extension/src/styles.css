@@ -73,3 +73,17 @@ p { margin: 0; }
 .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--cyan); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+
+.decision { display: flex; flex-direction: column; gap: 6px; border-left-width: 3px; }
+.decision.verdict-fits { border-left-color: var(--pos); }
+.decision.verdict-consider { border-left-color: var(--warn); }
+.decision.verdict-risk { border-left-color: var(--neg); }
+.decision.verdict-unknown { border-left-color: var(--line); }
+.decision-title { margin: 0; font-weight: 600; font-size: 14px; }
+.decision.verdict-fits .decision-title { color: var(--pos); }
+.decision.verdict-consider .decision-title { color: var(--warn); }
+.decision.verdict-risk .decision-title { color: var(--neg); }
+.decision ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.link { background: none; border: 0; padding: 0; color: var(--cyan, #39d9ff); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.link:hover, .link:focus-visible { text-decoration: underline; }
+.tiny { font-size: 10px; margin: 0; }

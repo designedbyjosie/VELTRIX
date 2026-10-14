@@ -10,6 +10,7 @@ import { POST as decide } from "@/app/api/plan/decision/route";
 import { POST as stress } from "@/app/api/plan/stress/route";
 import { GET as listPlans, POST as savePlan } from "@/app/api/plan/snapshots/route";
 import { DELETE as deletePlan, GET as getPlan } from "@/app/api/plan/snapshots/[id]/route";
+import { POST as chat } from "@/app/api/advisor/chat/route";
 import { db } from "@/server/db";
 import { addMonths, todayIn } from "@/server/dates";
 import { call, newUser } from "./helpers";
@@ -165,5 +166,31 @@ describe("what-if, decisions, stress tests and saved plans", () => {
     const texts = r.findings.map((f: { text: string }) => f.text).join(" | ");
     expect(texts).toMatch(/Income matched the plan/);
     expect(texts).toMatch(/Spending averaged \$3,100\.00 a month, \$700\.00 more than planned/);
+  });
+
+});
+
+describe("advisor answers what-if questions from the plan engine", () => {
+  it("reviews a purchase, runs a scenario and a stress test without an AI key", async () => {
+    const u = await plannedUser();
+    const ask = async (message: string) => (await call(chat, "/api/advisor/chat", { cookie: u.cookie, body: { message } })).json.message;
+
+    const buy = await ask("What if I buy a $5,000 used car?");
+    expect(buy.content).toMatch(/^Could put a goal at risk — Used car:/);
+    expect(buy.content).toMatch(/It's your call/);
+    expect(buy.evidence.tools[0]).toMatchObject({ name: "review_purchase", link: { href: expect.stringContaining("/app/plan?tab=decide") } });
+    expect(buy.actions).toEqual([]);
+
+    const drop = await ask("What if my income drops by 15%?");
+    expect(drop.content).toMatch(/If income −15%, here's the projection/);
+    expect(drop.content).toMatch(/not predictions/);
+
+    const stressReply = await ask("What if I lose my job for 3 months?");
+    expect(stressReply.content).toMatch(/cash covers about 3 months of essential spending/);
+    expect(stressReply.content).toMatch(/How to prepare/);
+
+    // A plain data update still becomes a proposal, not a what-if
+    const update = await ask("My rent went up to $1,600");
+    expect(update.actions[0].kind).toBe("set_budget_limit");
   });
 });

@@ -113,6 +113,14 @@ describe("purchase decision", () => {
     expect(d.reasons[0].code).toBe("below_one_month");
   });
 
+  it("says when there isn't enough data instead of guessing", () => {
+    const empty = { ...base, liquidCents: 0, monthlyIncomeCents: 0, essentialCents: 0, discretionaryCents: 0, goals: [] };
+    const d = evaluatePurchase(empty, flat, { label: "TV", priceCents: 90_000, cashKnown: false }, fmt);
+    expect(d.verdict).toBe("unknown");
+    expect(d.missing).toEqual(["available cash", "monthly income", "monthly spending"]);
+    expect(d.reasons[0].code).toBe("not_enough_data");
+  });
+
   it("prices financing and says when the projection is limited", () => {
     const d = evaluatePurchase({ ...base, monthlyIncomeCents: 0, essentialCents: 0, discretionaryCents: 0 }, flat, { label: "Phone", priceCents: 100_000, financing: { months: 12, aprPercent: 20 } }, fmt);
     expect(d.confidence).toBe("limited");

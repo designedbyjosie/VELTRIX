@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Lightbulb, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, HelpCircle, Lightbulb, Save } from "lucide-react";
 import type { DecisionReason, PlanComparison, PlanSummary, ScenarioChange } from "@veltrix/shared";
 import { Badge, Button, Card, Field, FormError, Input, Select } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -18,7 +18,7 @@ interface Option {
   changes: ScenarioChange[];
 }
 interface Decision {
-  verdict: "fits" | "consider" | "risk";
+  verdict: "fits" | "consider" | "risk" | "unknown";
   confidence: "normal" | "limited";
   reasons: DecisionReason[];
   options: Option[];
@@ -35,6 +35,7 @@ const VERDICT = {
   fits: { title: "Fits your plan", icon: CheckCircle2, tone: "border-pos/40 bg-pos/10 text-pos", body: "Based on the information available, this purchase is consistent with your goals and cash needs." },
   consider: { title: "Consider alternatives", icon: Lightbulb, tone: "border-warn/40 bg-warn/10 text-warn", body: "A different timing, price or payment option may fit your goals better. Here's why." },
   risk: { title: "Could put a goal at risk", icon: AlertTriangle, tone: "border-neg/40 bg-neg/10 text-neg", body: "This may conflict with money you've committed or a goal you've set. Here's what we found." },
+  unknown: { title: "Not enough data to review", icon: HelpCircle, tone: "border-line bg-bg2/60 text-ink", body: "Add your accounts, income and spending (guided setup takes about five minutes) and VELTRIX can check this against your plan." },
 } as const;
 
 const CATEGORIES = [

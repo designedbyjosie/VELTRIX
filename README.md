@@ -2,7 +2,7 @@
 
 VELTRIX is an AI-assisted personal finance platform. It has three parts:
 
-- a **web app**: dashboard, transactions, budgets, savings, goals, investments, markets research, deals, shopping, travel, reports and an AI advisor
+- a **web app**: dashboard, a **What-if Lab** (financial profile, scenarios, purchase decisions, stress tests, saved plans compared with actual results), transactions, budgets, savings, goals, investments, markets research, deals, shopping, travel, reports and an AI advisor
 - a **secure backend** with a PostgreSQL database
 - a **Manifest V3 browser extension** that analyzes the page you're on (products, financial news, stock quotes, travel bookings) and saves what you find to the same account
 
@@ -12,7 +12,7 @@ Every figure is calculated by the application from your records, your linked ban
 apps/web         Next.js 15 app: UI, API routes, services, Prisma schema & migrations
 apps/extension   Chrome/Edge MV3 extension (service worker, popup, options, on-demand extractor)
 packages/shared  Shared TypeScript: zod API contracts, money & finance calculations, CSV parsing, page extraction
-docs/            Architecture, API, security and deployment (DEPLOY.md) notes
+docs/            Architecture, API, deployment (DEPLOY.md) and product strategy (PRODUCT_STRATEGY.md)
 ```
 
 ## Quick start
@@ -91,10 +91,10 @@ Settings → Integrations in the app shows the live status of each. No API is as
 
 ## Testing
 
-- **packages/shared** (48 tests): money arithmetic, net worth, spending, budgets, recurring detection, goals, portfolio returns, CSV parsing, page extraction (form fields never read, sensitive pages refused, scripts never executed), sanitization, password rules.
-- **apps/web** (65 tests): route handlers called directly against PostgreSQL. Covers registration/login, email verification gating, password reset (single-use, no account enumeration), TOTP two-factor and recovery codes, lockout, rate limiting, CSRF origin rejection, logout invalidation, **cross-user isolation on every resource type**, CSV idempotency, budget maths, goals, net worth with FX conversion, the built-in advisor, extension pairing and token scopes, the Finnhub, Frankfurter and Plaid adapters and bank sync against mocked provider responses, guided setup, and advisor-proposed changes (plain-language parsing, apply-only-on-approval, expiry, cross-user refusal, re-validation at apply time).
+- **packages/shared** (62 tests): money arithmetic, net worth, spending, budgets, recurring detection, goals, portfolio returns, CSV parsing, page extraction (form fields never read, sensitive pages refused, scripts never executed), sanitization, password rules, and the plan engine (projections, purchase decision rules, stress tests, goal timing, debt interest, financing).
+- **apps/web** (84 tests): route handlers called directly against PostgreSQL. Covers registration/login, email verification gating, password reset (single-use, no account enumeration), TOTP two-factor and recovery codes, lockout, rate limiting, CSRF origin rejection, logout invalidation, **cross-user isolation on every resource type**, CSV idempotency, budget maths, goals, net worth with FX conversion, the built-in advisor, extension pairing and token scopes, the Finnhub, Frankfurter and Plaid adapters and bank sync against mocked provider responses, guided setup, and advisor-proposed changes (plain-language parsing, apply-only-on-approval, expiry, cross-user refusal, re-validation at apply time), the financial profile (sources, fallbacks, missing data), what-if/decision/stress APIs, saved plans compared with actuals, and the advisor answering what-if questions.
 - **apps/extension** (6 tests): message validation (no open redirects) and the built extractor bundle, including the manifest's least-privilege permissions.
-- **e2e** (7 tests): landing page; register → verify email → account → transaction → budget → dashboard → advisor; guided manual setup → monthly plan → advisor proposes changes → apply → dashboard updates; password reset; redirect when signed out; and the real extension loaded in Chromium: pair → analyze the demo store → save → product visible in the web app.
+- **e2e** (7 tests, including the What-if Lab): landing page; register → verify email → account → transaction → budget → dashboard → advisor; guided manual setup → monthly plan → advisor proposes changes → apply → dashboard updates → purchase review → saved plan; password reset; redirect when signed out; and the real extension loaded in Chromium: pair → analyze the demo store → save → product visible in the web app.
 
 ## Known limitations
 

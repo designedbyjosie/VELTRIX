@@ -18,7 +18,8 @@ import { alternativesFor, priceVerdict, historyStats, recordObservation, savePro
 import { saveArticle } from "./articles";
 import { addToWatchlist, watchedSymbols } from "./investments";
 import { addTravelExpense, listTrips } from "./travel";
-import { hasConsent } from "./users";
+import { hasConsent, userContext } from "./users";
+import { decidePurchase } from "./plan";
 
 export const EXTENSION_SCOPE = "extension";
 const PAIRING_TTL_MS = 10 * 60 * 1000;
@@ -124,6 +125,35 @@ export async function analyzePage(userId: string, page: PageExtractionInput, tim
     }
     disclaimers.push("Coupons and cashback are only shown when verified; VELTRIX doesn't have a merchant price feed configured.");
     const stats = historyStats(obs);
+
+    // Decision review against the user's own plan (same engine as the What-if Lab).
+    let decision: NonNullable<ExtensionAnalysis["product"]>["decision"] = null;
+    const ctx = await userContext(userId);
+    if (p.priceCents && p.currency === ctx.currency) {
+      try {
+        const best = cheaper[0];
+        const d = await decidePurchase(
+          userId,
+          {
+            label: p.title.slice(0, 80) || "This product",
+            priceCents: p.priceCents,
+            categorySlug: "shopping",
+            alternative: best ? { label: `Same item at ${best.merchant}`.slice(0, 80), priceCents: best.priceCents, verified: true } : null,
+            horizonMonths: 24,
+          },
+          ctx,
+        );
+        decision = {
+          verdict: d.verdict,
+          title: { fits: "Fits your plan", consider: "Consider alternatives", risk: "Could put a goal at risk", unknown: "Not enough data to review" }[d.verdict],
+          reasons: d.reasons.slice(0, 3).map((r) => r.text),
+          limited: d.confidence === "limited",
+          reviewPath: `/app/plan?tab=decide&item=${encodeURIComponent(p.title.slice(0, 50))}&price=${(p.priceCents / 100).toFixed(2)}`,
+        };
+      } catch (err) {
+        console.error("[extension] decision review failed", err);
+      }
+    }
     return {
       pageType: "product",
       headline: p.title,
@@ -139,6 +169,7 @@ export async function analyzePage(userId: string, page: PageExtractionInput, tim
         verdict: verdict ? { label: verdict.label, tone: verdict.tone, basis: verdict.basis } : null,
         budget: shoppingLine ? { categoryName: shoppingLine.category.name, remainingCents: shoppingLine.remainingCents, limitCents: shoppingLine.limitCents, currency: shoppingLine.currency } : null,
         alternatives,
+        decision,
       },
       insights,
       disclaimers,

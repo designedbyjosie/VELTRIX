@@ -110,6 +110,19 @@ test("guided manual setup, then the advisor adjusts the dashboard after approval
   await expect(page.getByRole("heading", { name: "Monthly plan" })).toBeVisible();
   await expect(page.getByText("Investment performance")).toHaveCount(0);
   await expect(page.getByText("$1,100").first()).toBeVisible();
+
+  // What-if Lab: review a purchase against the plan, then save the chosen option
+  await page.goto("/app/plan?tab=decide");
+  await page.fill("#d-label", "New laptop");
+  await page.fill("#d-price", "2000");
+  await page.getByRole("button", { name: "Review this purchase" }).click();
+  await expect(page.getByText("Could put a goal at risk", { exact: true }).first()).toBeVisible(); // $2,000 > $1,250 cash
+  await expect(page.getByRole("heading", { name: "Compare your options" })).toBeVisible();
+  await page.getByRole("button", { name: /I'll buy in \d+ months?/ }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.goto("/app/plan?tab=saved");
+  await page.getByRole("button", { name: /New laptop: Buy in/ }).click();
+  await expect(page.getByRole("heading", { name: "Projected vs. actual" })).toBeVisible();
 });
 
 test("password reset page never reveals whether an account exists", async ({ page }) => {

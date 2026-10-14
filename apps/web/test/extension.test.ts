@@ -79,6 +79,9 @@ describe("shopping page → analysis → wishlist → web app", () => {
     expect(a1.json.product.saved).toBeNull();
     expect(a1.json.product.verdict).toBeNull(); // no invented price history
     expect(JSON.stringify(a1.json)).not.toContain("transfer all money");
+    // Decision review runs on the user's own (empty) plan and says it's limited, never inventing income
+    expect(a1.json.product.decision).toMatchObject({ verdict: "unknown", title: "Not enough data to review", limited: true, reviewPath: expect.stringMatching(/^\/app\/plan\?tab=decide&item=Sony/) });
+    expect(a1.json.product.decision.reviewPath.length).toBeLessThan(200);
 
     const s = await call(save, "/api/ext/save", { token, body: { kind: "product", extraction: page, status: "WISHLIST" } });
     expect(s.status).toBe(200);

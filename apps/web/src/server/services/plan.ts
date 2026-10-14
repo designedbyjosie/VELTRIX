@@ -71,7 +71,12 @@ export async function runWhatIf(userId: string, input: z.infer<typeof scenarioRe
   };
 }
 
-export async function decidePurchase(userId: string, input: z.infer<typeof decisionRequestSchema>, ctx: Ctx) {
+type DecisionInput = Omit<z.infer<typeof decisionRequestSchema>, "alternative"> & {
+  /** `verified` is set only server-side, for prices VELTRIX itself observed. */
+  alternative?: { label: string; priceCents: number; verified?: boolean } | null;
+};
+
+export async function decidePurchase(userId: string, input: DecisionInput, ctx: Ctx) {
   const p = await buildProfile(userId, ctx);
   let categoryRemainingCents: number | null = null;
   let categoryName: string | null = null;
@@ -92,10 +97,11 @@ export async function decidePurchase(userId: string, input: z.infer<typeof decis
       priceCents: input.priceCents,
       categoryRemainingCents,
       financing: input.financing ?? null,
-      alternative: input.alternative ? { ...input.alternative, verified: false } : null,
+      alternative: input.alternative ? { label: input.alternative.label, priceCents: input.alternative.priceCents, verified: input.alternative.verified === true } : null,
       waitMonths: input.waitMonths,
       usesPerMonth: input.usesPerMonth ?? null,
       horizonMonths: input.horizonMonths,
+      cashKnown: p.figures.liquid.cents !== null,
     },
     fmt,
   );

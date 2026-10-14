@@ -117,7 +117,7 @@ export function SavedPlans({ currency }: { currency: string }) {
                 <span>Plan starts {ym(open.startMonth)} · {open.elapsedMonths} month{open.elapsedMonths === 1 ? "" : "s"} elapsed</span>
                 {open.decision && (
                   <span>
-                    Decision: {CHOICE[open.decision.choice] ?? open.decision.choice} (review said &quot;{open.decision.verdict === "fits" ? "Fits your plan" : open.decision.verdict === "consider" ? "Consider alternatives" : "Could put a goal at risk"}&quot;)
+                    Decision: {CHOICE[open.decision.choice] ?? open.decision.choice} (review said &quot;{open.decision.verdict === "fits" ? "Fits your plan" : open.decision.verdict === "consider" ? "Consider alternatives" : open.decision.verdict === "risk" ? "Could put a goal at risk" : "Not enough data"}&quot;)
                   </span>
                 )}
               </div>
