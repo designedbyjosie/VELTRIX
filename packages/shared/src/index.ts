@@ -5,4 +5,5 @@ export * from "./sanitize";
 export * from "./schemas";
 export * from "./finance";
 export * from "./tokens";
+export * from "./dashboard";
 export type { PageExtraction, PageType, ExtractedProduct, ExtractedArticle, ExtractedTravel } from "./extract";

@@ -60,6 +60,8 @@ const EVENT_LABELS: Record<string, string> = {
   "data.demo_loaded": "Demo data loaded",
   "data.demo_removed": "Demo data removed",
   "data.csv_imported": "Transactions imported",
+  "setup.completed": "Guided setup completed",
+  "advisor.change_applied": "Advisor change applied",
   "consent.changed": "Privacy choice changed",
   "security.rate_limited": "Too many requests blocked",
   "security.origin_rejected": "Cross-site request blocked",

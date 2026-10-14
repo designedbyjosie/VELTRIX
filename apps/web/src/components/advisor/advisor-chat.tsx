@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Database, MessageSquarePlus, Send, Sparkles, Trash2 } from "lucide-react";
+import { Bot, Check, Database, LayoutDashboard, MessageSquarePlus, Send, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { Badge, Button, FormError, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
@@ -13,11 +13,20 @@ interface Evidence {
   mode: "builtin" | "llm";
   fallbackNote: string | null;
 }
+interface ProposedAction {
+  id: string;
+  kind: string;
+  summary: string;
+  status: "PROPOSED" | "APPLIED" | "DISMISSED" | "FAILED";
+  error: string | null;
+  expired: boolean;
+}
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   evidence?: Evidence | null;
+  actions?: ProposedAction[];
   createdAt: string;
 }
 export interface AdvisorStatus {
@@ -37,6 +46,89 @@ const PROVENANCE: Record<string, { label: string; tone: "info" | "pos" | "warn" 
 };
 
 const SUGGESTIONS = ["Where did my money go this month?", "Which categories are over budget?", "How much could I save by reducing subscriptions?", "How am I progressing toward my emergency fund?", "Compare VOO and QQQ", "Can I afford a $350 purchase?"];
+const CHANGE_SUGGESTIONS = ["Set my food budget to $400", "I make $4,000 a month", "I want to save $5,000 for a car by June 2027", "Move my goals to the top of my dashboard"];
+
+/** Changes the advisor proposed. Each takes effect only when the user applies it. */
+function ProposedChanges({ actions: initial }: { actions: ProposedAction[] }) {
+  const [actions, setActions] = useState(initial);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pending = actions.filter((a) => a.status === "PROPOSED" && !a.expired);
+  const anyApplied = actions.some((a) => a.status === "APPLIED");
+
+  async function act(id: string, verb: "apply" | "dismiss") {
+    setBusy(id);
+    setError(null);
+    try {
+      const r = await api<{ action: ProposedAction }>(`/api/advisor/actions/${id}/${verb}`, { method: "POST" });
+      setActions((xs) => xs.map((x) => (x.id === id ? r.action : x)));
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : "That didn't work. Try again.";
+      setError(message);
+      setActions((xs) => xs.map((x) => (x.id === id && e instanceof ApiError && e.status === 409 ? { ...x, status: "FAILED", error: message } : x)));
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function applyAll() {
+    for (const a of pending) await act(a.id, "apply");
+  }
+
+  return (
+    <div className="mt-3 rounded-[12px] border border-blue/40 bg-blue/5 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-ink">
+          <Wand2 className="size-3.5 text-cyan" aria-hidden /> Proposed changes
+        </p>
+        {pending.length > 1 && (
+          <Button size="sm" variant="primary" onClick={applyAll} loading={busy !== null}>
+            Apply all
+          </Button>
+        )}
+      </div>
+      <ul className="space-y-2">
+        {actions.map((a) => (
+          <li key={a.id} className="flex flex-wrap items-center gap-2 rounded-[10px] bg-bg2/70 px-3 py-2">
+            <span className="min-w-0 flex-1 text-sm">{a.summary}</span>
+            {a.status === "PROPOSED" && !a.expired ? (
+              <span className="flex gap-1.5">
+                <Button size="sm" variant="primary" onClick={() => act(a.id, "apply")} loading={busy === a.id} aria-label={`Apply: ${a.summary}`}>
+                  <Check className="size-3.5" /> Apply
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => act(a.id, "dismiss")} disabled={busy !== null} aria-label={`Dismiss: ${a.summary}`}>
+                  <X className="size-3.5" />
+                </Button>
+              </span>
+            ) : a.status === "APPLIED" ? (
+              <Badge tone="pos">Applied</Badge>
+            ) : a.status === "DISMISSED" ? (
+              <Badge tone="neutral">Dismissed</Badge>
+            ) : a.expired ? (
+              <Badge tone="neutral">Expired</Badge>
+            ) : (
+              <Badge tone="warn" title={a.error ?? undefined}>
+                Couldn&apos;t apply
+              </Badge>
+            )}
+            {a.status === "FAILED" && a.error && <p className="w-full text-[11px] text-warn">{a.error}</p>}
+          </li>
+        ))}
+      </ul>
+      <FormError message={error} />
+      <p className="mt-2 text-[10px] text-ink3">
+        {pending.length > 0 && "Nothing changes until you click Apply."}
+        {anyApplied && (
+          <>
+            {" "}
+            <Link href="/app" className="inline-flex items-center gap-1 text-cyan hover:underline">
+              <LayoutDashboard className="size-3" aria-hidden /> View your dashboard
+            </Link>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
 
 function Content({ text }: { text: string }) {
   // Plain-text rendering with line breaks and bullets; never injects HTML.
@@ -185,6 +277,14 @@ export function AdvisorChat({ status, conversations: initialConvos }: { status: 
                   </button>
                 ))}
               </div>
+              <p className="mt-6 text-xs font-medium text-ink2">Or tell it what changed. You&apos;ll confirm each update:</p>
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                {CHANGE_SUGGESTIONS.map((s) => (
+                  <button key={s} onClick={() => setInput(s)} className="rounded-full border border-dashed border-blue/50 bg-blue/5 px-3 py-1.5 text-xs text-ink2 hover:border-blue hover:text-ink">
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <ol className="mx-auto max-w-3xl space-y-5">
@@ -197,6 +297,7 @@ export function AdvisorChat({ status, conversations: initialConvos }: { status: 
                   )}
                   <div className={m.role === "user" ? "max-w-[80%] rounded-[14px] rounded-br-[4px] bg-blue/20 px-4 py-2.5 text-sm" : "min-w-0 flex-1 text-sm leading-relaxed text-ink"}>
                     <Content text={m.content} />
+                    {m.role === "assistant" && !!m.actions?.length && <ProposedChanges actions={m.actions} />}
                     {m.role === "assistant" && m.evidence && (
                       <div className="mt-3 rounded-[10px] border border-line-soft bg-bg2/60 p-3">
                         <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-ink3">
@@ -254,14 +355,14 @@ export function AdvisorChat({ status, conversations: initialConvos }: { status: 
               }}
               rows={1}
               maxLength={4000}
-              placeholder="Ask about spending, budgets, goals, investments, purchases…"
+              placeholder="Ask a question, or tell me what changed (e.g. “my rent went up to $1,500”)…"
               className="max-h-40 min-h-11 flex-1 resize-none rounded-[12px] border border-line bg-bg2 px-3.5 py-2.5 text-sm text-ink placeholder:text-ink3 outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
             />
             <Button type="submit" variant="primary" className="h-11" loading={sending} aria-label="Send">
               <Send className="size-4" />
             </Button>
           </div>
-          <p className="mt-1.5 text-[10px] text-ink3">VELTRIX can be wrong. It can&apos;t move money, place trades or make bookings.</p>
+          <p className="mt-1.5 text-[10px] text-ink3">VELTRIX can be wrong. It can update your VELTRIX records only after you approve each change, and it can&apos;t move money, place trades or make bookings.</p>
         </form>
       </section>
     </div>

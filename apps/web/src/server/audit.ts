@@ -28,6 +28,8 @@ export type AuditType =
   | "data.demo_loaded"
   | "data.demo_removed"
   | "data.csv_imported"
+  | "setup.completed"
+  | "advisor.change_applied"
   | "consent.changed"
   | "security.rate_limited"
   | "security.origin_rejected";

@@ -27,6 +27,9 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/auth/reset-password` | POST | none | `{token,password}`; signs out all sessions |
 | `/api/settings/mfa` | GET POST | session | Status · start setup (QR + secret) |
 | `/api/settings/mfa/enable`, `/disable`, `/recovery-codes` | POST | session | `{code}` · `{password,code}` · `{password}` |
+| `/api/setup` | GET POST | session | Suggestions from linked data · save guided setup `{path, accounts[], monthlyIncome, budget[{category,limit}], goal}` |
+| `/api/settings/dashboard` | GET PATCH | session | `{layout: widget[]}`, ordered visible widgets |
+| `/api/advisor/actions/:id/apply`, `/dismiss` | POST | session | Apply or dismiss a proposed change. 409 if already handled or no longer valid, 410 if expired |
 | `/api/banks` | GET | session | `{configured, items}` |
 | `/api/banks/link-token` | POST | session | `{itemId?}` (update mode) → `{linkToken}` |
 | `/api/banks/exchange` | POST | session | `{publicToken}` → links item, imports accounts and transactions |
@@ -55,7 +58,7 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/trips` | GET · POST | session or token · session | |
 | `/api/trips/:id`, `/api/trips/:id/expenses[/:eid]` | PATCH DELETE · POST DELETE | session | `isQuote` separates quotes from spend |
 | `/api/fx?from=&to=` | GET | session | `rate: null` when no provider is configured |
-| `/api/advisor/chat` | POST | session | `{conversationId?, message}` → `{conversationId, message{evidence}, status}` |
+| `/api/advisor/chat` | POST | session | `{conversationId?, message}` → `{conversationId, message{evidence, actions[]}, status}` |
 | `/api/advisor/conversations[/:id]` | GET · GET DELETE | session | |
 | `/api/reports?period=monthly\|yearly` | GET | session | |
 | `/api/notifications` | GET POST | session | POST `{id}` or `{id:"all"}` marks read |

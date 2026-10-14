@@ -8,6 +8,7 @@ import { builtinAnswer } from "./builtin";
 import { ADVISOR_SYSTEM_PROMPT, ARTICLE_SUMMARY_PROMPT } from "./prompts";
 import { llm } from "./providers";
 import { runTool, type ToolContext } from "./tools";
+import { proposeChanges, serializeAction } from "../services/advisor-actions";
 
 export interface AdvisorStatus {
   mode: "llm" | "builtin";
@@ -37,7 +38,16 @@ export async function sendAdvisorMessage(userId: string, ctx: Omit<ToolContext, 
   const history = await db.aIMessage.findMany({ where: { conversationId: conversation.id }, orderBy: { createdAt: "asc" }, take: 30 });
   await db.aIMessage.create({ data: { conversationId: conversation.id, userId, role: "USER", content: input.message } });
 
-  const toolCtx: ToolContext = { userId, ...ctx };
+  const proposedIds: string[] = [];
+  const toolCtx: ToolContext = {
+    userId,
+    ...ctx,
+    propose: async (changes) => {
+      const r = await proposeChanges(userId, conversation.id, changes, ctx);
+      proposedIds.push(...r.proposed.map((p) => p.id));
+      return r;
+    },
+  };
   const status = await advisorStatus(userId);
   const evidence: { name: string; label: string; provenance: string[] }[] = [];
   let text: string;
@@ -85,12 +95,23 @@ export async function sendAdvisorMessage(userId: string, ctx: Omit<ToolContext, 
   const assistant = await db.aIMessage.create({
     data: { conversationId: conversation.id, userId, role: "ASSISTANT", content: text, evidence: evidenceJson, provider, model, tokensIn, tokensOut },
   });
+  if (proposedIds.length) await db.advisorAction.updateMany({ where: { id: { in: proposedIds }, userId }, data: { messageId: assistant.id } });
   await db.aIConversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
-  return { conversationId: conversation.id, message: serializeMessage(assistant), status };
+  const actions = proposedIds.length ? await db.advisorAction.findMany({ where: { messageId: assistant.id }, orderBy: { createdAt: "asc" } }) : [];
+  return { conversationId: conversation.id, message: serializeMessage({ ...assistant, actions }), status };
 }
 
-function serializeMessage(m: { id: string; role: string; content: string; evidence: Prisma.JsonValue | null; provider: string | null; createdAt: Date }) {
-  return { id: m.id, role: m.role === "USER" ? "user" : "assistant", content: m.content, evidence: m.evidence as unknown, provider: m.provider, createdAt: m.createdAt.toISOString() };
+type ActionRow = Parameters<typeof serializeAction>[0];
+function serializeMessage(m: { id: string; role: string; content: string; evidence: Prisma.JsonValue | null; provider: string | null; createdAt: Date; actions?: ActionRow[] }) {
+  return {
+    id: m.id,
+    role: m.role === "USER" ? "user" : "assistant",
+    content: m.content,
+    evidence: m.evidence as unknown,
+    provider: m.provider,
+    createdAt: m.createdAt.toISOString(),
+    actions: (m.actions ?? []).map(serializeAction),
+  };
 }
 export type SerializedMessage = ReturnType<typeof serializeMessage>;
 
@@ -99,7 +120,7 @@ export async function listConversations(userId: string) {
 }
 
 export async function getConversation(userId: string, id: string) {
-  const c = await db.aIConversation.findFirst({ where: { id, userId }, include: { messages: { orderBy: { createdAt: "asc" } } } });
+  const c = await db.aIConversation.findFirst({ where: { id, userId }, include: { messages: { orderBy: { createdAt: "asc" }, include: { actions: { orderBy: { createdAt: "asc" } } } } } });
   if (!c) throw notFound("Conversation");
   return { id: c.id, title: c.title, messages: c.messages.map(serializeMessage) };
 }

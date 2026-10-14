@@ -20,6 +20,7 @@ export const getCurrentUser = cache(async () => {
     timezone: user.profile?.timezone ?? "UTC",
     plan: user.profile?.plan ?? "free",
     hasDemoData: user.profile?.hasDemoData ?? false,
+    onboarded: !!user.profile?.onboardingCompletedAt,
     emailVerified: !!user.emailVerifiedAt,
     mfaEnabled: !!user.mfaEnabledAt,
     preference: user.preference,

@@ -110,3 +110,31 @@ export async function listArchivedBudgets(userId: string) {
   return db.budget.findMany({ where: { userId, archivedAt: { not: null } }, select: { id: true, name: true, archivedAt: true } });
 }
 
+
+/** The budget that applies to a month: the first active one, if any. */
+export async function activeBudgetId(userId: string, ym: string) {
+  const status = await budgetStatusForMonth(userId, ym);
+  return status.find((b) => !b.archived)?.id ?? null;
+}
+
+/** Set one category's limit in the month's active budget, creating a "Monthly budget" if there is none. */
+export async function setBudgetLine(userId: string, ym: string, categoryId: string, limit: string) {
+  const cat = await assertCategory(userId, categoryId);
+  if (cat?.kind !== "EXPENSE") throw badRequest(`"${cat?.name}" isn't a spending category.`);
+  const budgetId = await activeBudgetId(userId, ym);
+  if (!budgetId) return createBudget(userId, { name: "Monthly budget", month: ym, recurring: true, lines: [{ categoryId, limit, alertThreshold: 80 }] });
+  await db.budgetCategory.upsert({
+    where: { budgetId_categoryId: { budgetId, categoryId } },
+    create: { budgetId, categoryId, limitAmount: decStr(limit) },
+    update: { limitAmount: decStr(limit) },
+  });
+  return db.budget.update({ where: { id: budgetId }, data: { updatedAt: new Date() } });
+}
+
+/** Remove a category from the month's active budget. Returns false when it wasn't budgeted. */
+export async function removeBudgetLine(userId: string, ym: string, categoryId: string) {
+  const budgetId = await activeBudgetId(userId, ym);
+  if (!budgetId) return false;
+  const r = await db.budgetCategory.deleteMany({ where: { budgetId, categoryId } });
+  return r.count > 0;
+}

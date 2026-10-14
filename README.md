@@ -39,7 +39,7 @@ npm run db:seed
 npm run dev                      # http://localhost:3000
 ```
 
-Register an account at http://localhost:3000/register. You'll need to confirm your email: without SMTP settings, the verification link is printed in the terminal running `npm run dev`. New accounts start empty. Connect a bank (Plaid), import a CSV or add accounts by hand.
+Register an account at http://localhost:3000/register. You'll need to confirm your email: without SMTP settings, the verification link is printed in the terminal running `npm run dev`. New accounts start with a **guided setup**: connect a bank through Plaid, or enter balances, income, monthly spending and a goal step by step without sharing bank details. You can also import a CSV.
 
 For production, set `ENCRYPTION_KEY` (`openssl rand -base64 32`) and SMTP settings. See [docs/DEPLOY.md](docs/DEPLOY.md).
 
@@ -92,9 +92,9 @@ Settings → Integrations in the app shows the live status of each. No API is as
 ## Testing
 
 - **packages/shared** (48 tests): money arithmetic, net worth, spending, budgets, recurring detection, goals, portfolio returns, CSV parsing, page extraction (form fields never read, sensitive pages refused, scripts never executed), sanitization, password rules.
-- **apps/web** (47 tests): route handlers called directly against PostgreSQL. Covers registration/login, email verification gating, password reset (single-use, no account enumeration), TOTP two-factor and recovery codes, lockout, rate limiting, CSRF origin rejection, logout invalidation, **cross-user isolation on every resource type**, CSV idempotency, budget maths, goals, net worth with FX conversion, the built-in advisor, extension pairing and token scopes, plus the Finnhub, Frankfurter and Plaid adapters and bank sync against mocked provider responses.
+- **apps/web** (65 tests): route handlers called directly against PostgreSQL. Covers registration/login, email verification gating, password reset (single-use, no account enumeration), TOTP two-factor and recovery codes, lockout, rate limiting, CSRF origin rejection, logout invalidation, **cross-user isolation on every resource type**, CSV idempotency, budget maths, goals, net worth with FX conversion, the built-in advisor, extension pairing and token scopes, the Finnhub, Frankfurter and Plaid adapters and bank sync against mocked provider responses, guided setup, and advisor-proposed changes (plain-language parsing, apply-only-on-approval, expiry, cross-user refusal, re-validation at apply time).
 - **apps/extension** (6 tests): message validation (no open redirects) and the built extractor bundle, including the manifest's least-privilege permissions.
-- **e2e** (6 tests): landing page; register → verify email → account → transaction → budget → dashboard → advisor; password reset; redirect when signed out; and the real extension loaded in Chromium: pair → analyze the demo store → save → product visible in the web app.
+- **e2e** (7 tests): landing page; register → verify email → account → transaction → budget → dashboard → advisor; guided manual setup → monthly plan → advisor proposes changes → apply → dashboard updates; password reset; redirect when signed out; and the real extension loaded in Chromium: pair → analyze the demo store → save → product visible in the web app.
 
 ## Known limitations
 

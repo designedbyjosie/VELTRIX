@@ -49,7 +49,7 @@ function loadPlaid(): Promise<void> {
   });
 }
 
-export function BankConnections({ configured }: { configured: boolean }) {
+export function BankConnections({ configured, onChange }: { configured: boolean; onChange?: (connectedCount: number) => void }) {
   const router = useRouter();
   const toast = useToast();
   const [items, setItems] = useState<Item[] | null>(null);
@@ -58,11 +58,13 @@ export function BankConnections({ configured }: { configured: boolean }) {
 
   const load = useCallback(async () => {
     try {
-      setItems((await api<{ items: Item[] }>("/api/banks")).items);
+      const next = (await api<{ items: Item[] }>("/api/banks")).items;
+      setItems(next);
+      onChange?.(next.length);
     } catch {
       setItems([]);
     }
-  }, []);
+  }, [onChange]);
   useEffect(() => {
     if (configured) load();
   }, [configured, load]);

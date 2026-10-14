@@ -109,6 +109,21 @@ static/manifest.template.json   host permission = VELTRIX_API_URL origin (set at
 - **AlphaVantageProvider** maps the provider's endpoints defensively and caches responses.
 - **DemoMarketProvider** (simulated, labeled demo) is used only when explicitly selected, e.g. by the test suite.
 
+## Guided setup and dashboard layout
+
+- `/app/setup` walks a new user through either path: **Connect my bank** (Plaid Link, then income, budget and goal, prefilled from the linked history via `GET /api/setup`) or **Enter it myself** (accounts, income with pay frequency, monthly spending per category, a goal). `POST /api/setup` saves everything at once and marks `onboardingCompletedAt`.
+- The home dashboard renders widgets in the order stored in `UserProfile.dashboardLayout` (`packages/shared/src/dashboard.ts`; missing = hidden). Users reorder or hide them with **Customize dashboard** or by asking the advisor. The **Monthly plan** widget shows take-home income − budgeted spending − planned goal saving.
+
+## Advisor-proposed changes
+
+The advisor can update VELTRIX records and the dashboard, but only through proposals the user approves:
+
+1. With an AI model, it calls `get_editable_items` then `propose_changes`. Without one, `ai/intents.ts` turns plain language ("my rent went up to $1,500", "I spent $42 on groceries yesterday", "hide investments from my dashboard") into the same change objects.
+2. `services/advisor-actions.ts` validates each change against `advisorChangeSchema`, checks every referenced account/goal belongs to the user (bank-linked accounts can't be edited), and stores it as a `PROPOSED` `AdvisorAction` with a plain-language summary showing the current value. Nothing is changed.
+3. The chat shows **Apply / Dismiss** per change. Applying claims the row atomically (no double-apply), re-validates against current data, performs the change through the normal services and writes an audit event. Proposals expire after 24 hours.
+
+Supported changes: monthly income, manual account balance, new account, budget limit (add/remove category), new goal, goal target/date/monthly amount, goal contribution, manual transaction, dashboard widget show/hide/move. The advisor still cannot move money, trade or book anything.
+
 ## Exchange rates
 
 `providers/fx.ts` fetches ECB reference rates from Frankfurter (no key) and caches them. Net worth converts foreign-currency balances into the user's base currency and shows the rates used.

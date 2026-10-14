@@ -5,6 +5,9 @@
  * from templates — so every number shown is application-computed.
  */
 import { runTool, type ToolContext } from "./tools";
+import { parseChangeRequests } from "./intents";
+import { editableItems } from "../services/advisor-actions";
+import { todayIn } from "../dates";
 
 export interface BuiltinAnswer {
   text: string;
@@ -34,6 +37,25 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
     used.push({ name, label: r.label, provenance: r.provenance });
     return r.data as Data;
   };
+
+  // Requests to change data or the dashboard become proposals the user can apply.
+  if (ctx.propose) {
+    const items = await editableItems(ctx.userId, ctx);
+    const { changes, notes } = parseChangeRequests(question, {
+      today: todayIn(ctx.timezone),
+      accounts: items.accounts.map((a) => ({ id: a.id, name: a.name, type: a.type, linkedToBank: a.linkedToBank })),
+      goals: items.goals.map((g) => ({ id: g.id, name: g.name, kind: g.kind })),
+    });
+    if (changes.length) {
+      const r = await ctx.propose(changes);
+      used.push({ name: "propose_changes", label: `Proposed ${r.proposed.length} change${r.proposed.length === 1 ? "" : "s"}`, provenance: ["user"] });
+      const lines = r.proposed.length ? ["Here's what I'll change. Review each one and click Apply — nothing changes until you do:", ...r.proposed.map((p) => bullet(p.summary))] : [];
+      for (const x of r.rejected) lines.push(bullet(`Couldn't propose: ${x.reason}`));
+      lines.push(...notes.map(bullet));
+      return { text: lines.join("\n"), tools: used };
+    }
+    if (notes.length) return { text: notes.join("\n"), tools: used };
+  }
 
   const amountMatch = question.match(/\$?\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?/);
   const syms = tickers(question);
@@ -170,6 +192,12 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
       bullet("Compare VOO and QQQ"),
       bullet("Can I afford a $350 purchase?"),
       bullet("What's my net worth?"),
+      "",
+      "I can also update things for you (you'll confirm each change):",
+      bullet("Set my food budget to $400"),
+      bullet("My checking balance is $2,500"),
+      bullet("I want to save $5,000 for a car by June 2027"),
+      bullet("Hide investments from my dashboard"),
     ].join("\n"),
     tools: used,
   };

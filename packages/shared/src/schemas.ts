@@ -3,6 +3,7 @@
  * browser extension. The server validates every request against these.
  */
 import { z } from "zod";
+import { DASHBOARD_WIDGET_IDS } from "./dashboard";
 
 const money = z
   .string()
@@ -344,3 +345,45 @@ export const verifyEmailSchema = z.object({ token: tokenSchema });
 export const mfaCodeSchema = z.object({ code: z.string().trim().min(6, "Enter the 6-digit code").max(12) });
 export const mfaDisableSchema = z.object({ password: z.string().min(1).max(200), code: z.string().trim().min(6).max(12) });
 export const passwordConfirmSchema = z.object({ password: z.string().min(1).max(200) });
+
+// ---------- Guided setup & advisor changes ----------
+/** System spending categories a budget line can use, by slug. */
+export const budgetCategorySlugs = ["housing", "utilities", "food", "transport", "health", "subscriptions", "entertainment", "shopping", "travel", "other"] as const;
+const nonNegativeMoney = money.refine((v) => Number(v) >= 0, "Can't be negative");
+const name80 = shortText(80).min(1, "Enter a name");
+
+export const setupSchema = z.object({
+  path: z.enum(["bank", "manual"]),
+  accounts: z.array(z.object({ name: name80, type: z.enum(accountTypes), balance: money })).max(20).default([]),
+  monthlyIncome: nonNegativeMoney.nullable().optional(),
+  budget: z
+    .array(z.object({ category: z.enum(budgetCategorySlugs), limit: positiveMoney }))
+    .max(budgetCategorySlugs.length)
+    .default([])
+    .refine((lines) => new Set(lines.map((l) => l.category)).size === lines.length, "Each category can appear only once."),
+  goal: z
+    .object({ name: name80, kind: z.enum(goalKinds).default("OTHER"), target: positiveMoney, startingAmount: nonNegativeMoney.default("0"), targetDate: isoDate.nullable().optional(), plannedMonthly: nonNegativeMoney.nullable().optional() })
+    .nullable()
+    .optional(),
+});
+
+export const dashboardLayoutSchema = z.object({ layout: z.array(z.enum(DASHBOARD_WIDGET_IDS)).max(DASHBOARD_WIDGET_IDS.length) });
+
+/**
+ * One change the advisor can propose. Proposals are stored and only take effect when
+ * the user applies them; they are re-validated against the user's data at that point.
+ */
+export const advisorChangeSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("set_monthly_income"), amount: nonNegativeMoney }),
+  z.object({ action: z.literal("update_account_balance"), accountId: id, balance: money }),
+  z.object({ action: z.literal("create_account"), name: name80, type: z.enum(accountTypes), balance: money }),
+  z.object({ action: z.literal("set_budget_limit"), category: z.enum(budgetCategorySlugs), limit: positiveMoney }),
+  z.object({ action: z.literal("remove_budget_category"), category: z.enum(budgetCategorySlugs) }),
+  z.object({ action: z.literal("create_goal"), name: name80, goalType: z.enum(goalKinds).default("OTHER"), target: positiveMoney, targetDate: isoDate.nullable().optional(), plannedMonthly: nonNegativeMoney.nullable().optional() }),
+  z.object({ action: z.literal("update_goal"), goalId: id, target: positiveMoney.optional(), targetDate: isoDate.nullable().optional(), plannedMonthly: nonNegativeMoney.nullable().optional() }),
+  z.object({ action: z.literal("add_goal_contribution"), goalId: id, amount: money.refine((v) => Number(v) !== 0, "Amount can't be zero") }),
+  z.object({ action: z.literal("add_transaction"), date: isoDate, amount: money.refine((v) => Number(v) !== 0, "Amount can't be zero"), merchant: shortText(140).min(1), category: z.enum([...budgetCategorySlugs, "income"]).nullable().optional(), accountId: id.nullable().optional() }),
+  z.object({ action: z.literal("set_dashboard_widget"), widget: z.enum(DASHBOARD_WIDGET_IDS), visible: z.boolean(), position: z.enum(["top", "bottom"]).optional() }),
+]);
+export type AdvisorChange = z.infer<typeof advisorChangeSchema>;
+export const MAX_CHANGES_PER_PROPOSAL = 10;

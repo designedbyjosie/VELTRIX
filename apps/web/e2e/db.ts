@@ -6,3 +6,8 @@ const db = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL
 export async function markEmailVerified(email: string) {
   await db.user.update({ where: { email }, data: { emailVerifiedAt: new Date() } });
 }
+
+/** Clear sign-up/login rate limits so repeated local runs don't trip them. */
+export async function resetRateLimits() {
+  await db.rateLimitBucket.deleteMany({});
+}
