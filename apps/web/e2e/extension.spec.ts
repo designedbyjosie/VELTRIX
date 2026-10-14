@@ -1,3 +1,4 @@
+/// <reference types="chrome" />
 /**
  * Loads the built extension into Chromium and runs the core cross-product journey:
  * pair → analyze a shopping page → save to wishlist → product appears in the web app.

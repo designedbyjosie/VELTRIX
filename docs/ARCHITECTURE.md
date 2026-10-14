@@ -1,0 +1,109 @@
+# VELTRIX architecture
+
+## Overview
+
+```
+┌──────────────────────┐   HTTPS (cookie session)   ┌──────────────────────────────────────┐
+│ Web app (Next.js)    │ ─────────────────────────▶ │ API route handlers  (src/app/api)    │
+│ Server Components ───┼── direct service calls ──▶ │   handler(): auth · CSRF · rate limit │
+│ Client Components    │                            │            · zod validation · errors  │
+└──────────────────────┘                            │ Services   (src/server/services)      │
+┌──────────────────────┐   HTTPS (Bearer vxt_…)     │   every query scoped by userId        │
+│ Extension (MV3)      │ ─────────────────────────▶ │ Providers  (market, FX, AI adapters)  │
+│ service worker only  │                            │ Prisma ─▶ PostgreSQL                  │
+└──────────────────────┘                            └──────────────────────────────────────┘
+          ▲ chrome.runtime messages                  packages/shared: zod contracts, finance
+┌─────────┴────────────┐                             maths, CSV parsing, page extraction —
+│ popup / options      │                             used by web, API and extension alike
+└──────────────────────┘
+```
+
+**Stack decisions.** The repository was empty, so the brief's default stack was used: Next.js 15 (App Router) with TypeScript, Tailwind CSS v4, Recharts, Prisma 6 on PostgreSQL, zod, and esbuild + React for the extension. Prisma 7 and Next 16 were available but were passed over for their more established predecessors. Authentication is implemented in-house (bcrypt + opaque hashed tokens). The model is small, and it keeps extension tokens and browser sessions under one auditable implementation.
+
+## Money and calculations
+
+- Money is `Decimal(18,2)` in the database with an explicit currency column. All arithmetic uses **integer cents** (`packages/shared/src/money.ts`), so sums never drift.
+- Transactions are signed: negative means money out. Liabilities are stored as the positive amount owed.
+- **Net worth** = assets − liabilities, base currency only. Foreign-currency accounts are counted and reported, never converted with a guessed rate.
+- **Spending** excludes inflows and transfers (category kind `TRANSFER`).
+- **Budgets** apply to a month when they are one-off for that month, or recurring and started on or before it, and not archived by then. Usage, warnings (per-line threshold) and month-end projection (daily pace) are pure functions.
+- **Recurring detection** groups outflows by normalized merchant, checks interval regularity and amount stability, and stores **SUSPECTED** candidates. Only the user can mark one **CONFIRMED** or **DISMISSED**, and re-detection never overrides that choice.
+- **Goal projections** assume no growth: required monthly amount = remaining ÷ months left.
+- **Portfolio performance** separates *value change* from *market gain*. Gain = value change − net contributions, and return uses a simple Modified Dietz. Growth from deposits is never reported as profit.
+
+## Data model
+
+See `apps/web/prisma/schema.prisma`; each model carries a doc comment. Highlights:
+
+- Every user-owned table has `userId` with cascade delete, indexed for its main access path.
+- **Idempotent ingestion.** `Transaction.dedupeHash` is unique per user. CSV rows hash `(user, account, date, amount, merchant, occurrence-in-file)`, so re-importing a file inserts nothing, while two identical coffees in one file are both kept. `PriceObservation.observationKey` makes a same-day, same-price observation a no-op.
+- **Traceability.** Records carry a `source` (`MANUAL`, `CSV`, `EXTENSION`, `PROVIDER`, `DEMO`, …), and CSV rows link to their `ImportBatch`.
+- **Integrity migration** (`…_integrity_constraints`): a partial unique index for system categories, plus CHECK constraints (non-zero transaction amounts, positive limits/targets/prices, currency format, cashback range).
+- **ConsentRecord** is append-only: the latest row per purpose is the user's current choice.
+- **AuditEvent** records security-relevant events with a hashed IP.
+
+## Security model
+
+| Concern | Implementation |
+|---|---|
+| Passwords | bcrypt (cost 12). Constant-ish timing for unknown emails (dummy hash). |
+| Sessions | 32-byte random token in an `HttpOnly; SameSite=Lax` cookie (`Secure` in production). Only the SHA-256 hash is stored. 30-day expiry, revocable per device, all other sessions revoked on password change. |
+| CSRF | Cookie-authenticated mutations must carry an `Origin` matching `APP_URL`, on top of `SameSite=Lax`. |
+| Authorization | Every service function takes the authenticated `userId` and filters by it, for reads and writes alike. Foreign IDs return 404, so they don't confirm another user's record exists. Covered by `test/isolation.test.ts`. |
+| Extension tokens | Created only through a single-use, 10-minute pairing code. Hashed at rest, `extension` scope (refused on all other endpoints), 90-day expiry, revocable from Settings or the extension. |
+| Validation | zod schemas from `packages/shared/src/schemas.ts` on every body and query. URLs must be http(s). Bodies are capped at 3 MB. |
+| Rate limits | Login (per IP and per email), registration, pairing, CSV import, AI, search and export. |
+| Headers | CSP, `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS in production, `Cache-Control: no-store` on APIs. |
+| Exports | CSV cells are protected against formula injection. |
+| Secrets | Server-only env vars. Nothing secret is bundled into the client or the extension. |
+| Deletion | Account deletion cascades through all user data. Audit events are detached rather than kept linked. |
+
+Not implemented: email verification, password reset, MFA, PostgreSQL RLS, distributed rate limiting.
+
+## AI advisor
+
+`src/server/ai/`:
+
+- **tools.ts** contains read-only tools such as `get_spending_summary`, `get_budget_status`, `get_goals`, `evaluate_purchase` and `compare_instruments`. Each validates its input with zod and is bound to the session's `userId` on the server; the model never supplies a user id. All numbers are computed by application code and returned with a provenance label (`user`, `observed`, `provider`, `demo`, `estimate`, `education`).
+- **providers.ts** is the provider-independent adapter. Anthropic uses the official SDK (default `claude-opus-5-5`, `tool_choice: auto`, assistant turns appended unchanged across tool rounds). Any OpenAI-compatible endpoint is supported through `fetch`.
+- **advisor.ts** routes each request:
+  - **LLM mode** requires a configured provider *and* the user's `AI_PROCESSING` consent.
+  - **Built-in mode** (`builtin.ts`) recognizes the supported question types, calls the same tools and fills templates. It runs when either requirement is missing or the provider fails, and the reply says which mode answered.
+  - Messages are persisted with an evidence record (tools used, provenance, mode), and a per-user daily limit applies.
+- **Prompt injection.** Article text from web pages is sent only with consent, wrapped in `<untrusted_page_content>` with tag-stripping, and summarized by a tool-less call. Page content never reaches the tool-using advisor.
+
+**Insights** (`services/insights.ts`) are deterministic. Each stores what it is, why it matters, how it was calculated, its assumptions and the available action, and is labeled `POTENTIAL` vs `CONFIRMED`. Dismissals persist, stale insights are retired, and budget and goal warnings create notifications (respecting preferences).
+
+## Browser extension
+
+```
+src/background.ts   service worker — the only holder of the API token; all backend calls
+src/extractor.ts    bundled IIFE injected on demand; returns extractPage(document, location.href)
+src/popup/          React popup (380px)
+src/options/        React options page: pairing, privacy toggles, per-site disable list
+static/manifest.template.json   host permission = VELTRIX_API_URL origin (set at build)
+```
+
+- **Permissions:** `activeTab`, `scripting` and `storage`, plus the single API origin. There are no content scripts, no `<all_urls>`, no `externally_connectable` and no web-accessible resources.
+- **When it reads:** when the popup opens, or only after the button press if auto-analyze is off. The service worker injects the extractor into the active tab. Nothing happens in the background, and no browsing history is collected.
+- **What it reads** (`packages/shared/src/extract`): public product metadata from JSON-LD, OpenGraph, microdata and an Amazon-specific display markup fallback; article headline, publisher and date; ticker symbols; travel structured data. Specifically:
+  - never form-control values, cookies or storage
+  - JSON-LD is parsed with `JSON.parse`; no page script is executed
+  - checkout, cart, payment, login, account and banking pages (by path and by host) are refused before anything is read
+  - every string is sanitized (control/bidi characters, tags, length caps); URLs are http(s) only and canonicalized
+- **What it sends:** the extraction object, validated server-side by `pageExtractionSchema`. Article paragraphs are included only if the extension setting *and* the account consent are both on, and the server drops them otherwise.
+- **Messaging:** only messages whose sender URL is this extension's origin are accepted, and each must match the `isRequest` shape. "Open" requests are restricted to `/app…` paths.
+- **Rendering:** React text nodes only. Images are https-only with `no-referrer`.
+- **Server side** (`services/extension.ts`):
+  - analysis uses the user's saved products and observations, alternatives with the same GTIN or SKU at other merchants, the Shopping budget line and goals
+  - a price verdict needs ≥ 3 recorded observations, so no history is ever invented
+  - with `PRICE_TRACKING` consent, revisiting a saved product records its price
+  - `BrowserAnalysis` logs only domain, page type and detected tickers
+
+## Market data
+
+`providers/market.ts` defines `MarketDataProvider` (`search`, `profile`, `quote`, `history`):
+
+- **DemoMarketProvider** produces a deterministic simulated series per symbol. It is labeled demo everywhere — quote badges, chart cards, advisor tool notes, extension disclaimers.
+- **AlphaVantageProvider** maps the provider's endpoints defensively and caches responses.
+- Instruments unknown to the provider can still be watchlisted, and are marked unverified.
