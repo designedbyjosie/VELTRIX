@@ -4,7 +4,7 @@
  */
 import { env } from "../env";
 import { marketData } from "./market";
-import { mailConfigured } from "../mail";
+import { mailConfigured, missingMailSettings } from "../mail";
 
 export interface IntegrationStatus {
   id: string;
@@ -55,7 +55,7 @@ export function integrationStatuses(): IntegrationStatus[] {
       name: "Email",
       purpose: "Account confirmation, password resets and security alerts.",
       configured: mailConfigured(),
-      mode: mailConfigured() ? `SMTP via ${env.mail.host}` : "Not configured — emails are printed to the server log (development only)",
+      mode: mailConfigured() ? `SMTP via ${env.mail.host} as ${env.mail.user}` : `Not configured (missing ${missingMailSettings().join(", ")}). ${env.isProduction ? "Sign-up emails can't be sent." : "Emails are printed to the server log."}`,
       envVars: ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"],
     },
     { id: "news", name: "Financial news", purpose: "Company headlines on instrument pages.", configured: md.id === "finnhub", mode: md.id === "finnhub" ? "Finnhub company news" : "Comes with Finnhub market data; save articles with the extension meanwhile", envVars: ["FINNHUB_API_KEY"] },

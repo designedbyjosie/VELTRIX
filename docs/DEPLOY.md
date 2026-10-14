@@ -6,7 +6,7 @@
    - `APP_URL`: `https://<your-project>.vercel.app` (update it after the first deploy if the name differs)
    - `CRON_SECRET`: a random string of 16+ characters, for the daily job in `vercel.json`
    - `ENCRYPTION_KEY`: output of `openssl rand -base64 32`. Keep a copy; changing it later breaks linked banks and 2FA
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`: needed for sign-up verification and password resets. With Gmail: turn on 2-Step Verification, create an App Password at https://myaccount.google.com/apppasswords, and use `smtp.gmail.com`, port `587`, your Gmail address and that app password
+   - `SMTP_USER` and `SMTP_PASS`: needed for sign-up verification and password resets. With Gmail: turn on 2-Step Verification, create an App Password at https://myaccount.google.com/apppasswords, then set `SMTP_USER` to your Gmail address and `SMTP_PASS` to the app password. The server (`smtp.gmail.com`) and sender are filled in automatically; set `SMTP_HOST` / `EMAIL_FROM` only for other providers or a custom sender. After adding variables, **redeploy**: Vercel only applies them to new deployments. Settings → Integrations in the app shows whether email is configured and which setting is missing
    - `FINNHUB_API_KEY`: free key from https://finnhub.io/register, for real stock prices and company news
    - `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV=sandbox`: from https://dashboard.plaid.com/developers/keys. Sandbox uses test banks (`user_good` / `pass_good`); real banks need `PLAID_ENV=production` and Plaid's approval
    - optional: `AI_PROVIDER` / `AI_API_KEY`

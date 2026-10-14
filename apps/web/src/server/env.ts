@@ -4,8 +4,40 @@
  */
 
 function optional(name: string): string | null {
-  const v = process.env[name];
-  return v && v.trim() ? v.trim() : null;
+  let v = process.env[name]?.trim();
+  // Hosting dashboards store values literally, so a pasted "value" keeps its quotes.
+  if (v && v.length >= 2 && /^(["']).*\1$/.test(v)) v = v.slice(1, -1).trim();
+  return v ? v : null;
+}
+
+const first = (...names: string[]) => names.map(optional).find((v) => v !== null) ?? null;
+
+const KNOWN_SMTP_HOSTS: Record<string, string> = {
+  "gmail.com": "smtp.gmail.com",
+  "googlemail.com": "smtp.gmail.com",
+  "icloud.com": "smtp.mail.me.com",
+  "me.com": "smtp.mail.me.com",
+  "mac.com": "smtp.mail.me.com",
+  "outlook.com": "smtp-mail.outlook.com",
+  "hotmail.com": "smtp-mail.outlook.com",
+  "live.com": "smtp-mail.outlook.com",
+  "yahoo.com": "smtp.mail.yahoo.com",
+};
+
+/**
+ * SMTP settings. Only SMTP_USER and SMTP_PASS are required for Gmail, iCloud, Outlook
+ * and Yahoo addresses: the server is inferred from the address and the sender defaults
+ * to "VELTRIX <SMTP_USER>". Common alternative variable names are accepted too.
+ */
+function mailSettings() {
+  const user = first("SMTP_USER", "SMTP_USERNAME", "EMAIL_USER", "GMAIL_USER");
+  const domain = user?.split("@")[1]?.toLowerCase() ?? "";
+  const host = first("SMTP_HOST", "EMAIL_HOST") ?? KNOWN_SMTP_HOSTS[domain] ?? null;
+  const rawPass = first("SMTP_PASS", "SMTP_PASSWORD", "EMAIL_PASS", "EMAIL_PASSWORD", "GMAIL_APP_PASSWORD");
+  // Google shows app passwords as "abcd efgh ijkl mnop"; the spaces aren't part of it.
+  const pass = rawPass && host === "smtp.gmail.com" ? rawPass.replace(/\s+/g, "") : rawPass;
+  const from = first("EMAIL_FROM", "SMTP_FROM", "MAIL_FROM") ?? (user ? `VELTRIX <${user}>` : null);
+  return { host, port: Number(first("SMTP_PORT", "EMAIL_PORT") ?? 587), user, pass, from };
 }
 
 export const env = {
@@ -13,13 +45,7 @@ export const env = {
   /** 32-byte key (base64) for encrypting secrets at rest: two-factor secrets and bank-connection tokens. */
   encryptionKey: optional("ENCRYPTION_KEY"),
   requireEmailVerification: (optional("REQUIRE_EMAIL_VERIFICATION") ?? "true") !== "false",
-  mail: {
-    host: optional("SMTP_HOST"),
-    port: Number(optional("SMTP_PORT") ?? 587),
-    user: optional("SMTP_USER"),
-    pass: optional("SMTP_PASS"),
-    from: optional("EMAIL_FROM"),
-  },
+  mail: mailSettings(),
   isProduction: process.env.NODE_ENV === "production",
   bcryptCost: Number(optional("BCRYPT_COST") ?? 12),
   ai: {
