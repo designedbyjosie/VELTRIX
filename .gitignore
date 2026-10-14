@@ -1,0 +1,15 @@
+node_modules
+.next
+dist
+coverage
+*.log
+.env
+.env.local
+.env.*.local
+!.env.example
+apps/web/test-results
+apps/web/playwright-report
+apps/extension/*.zip
+.DS_Store
+tsconfig.tsbuildinfo
+next-env.d.ts

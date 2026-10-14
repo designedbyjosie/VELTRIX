@@ -1,0 +1,30 @@
+{
+  "name": "veltrix",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @veltrix/web",
+    "build": "npm run build -w @veltrix/web && npm run build -w @veltrix/extension",
+    "build:web": "npm run build -w @veltrix/web",
+    "build:extension": "npm run build -w @veltrix/extension",
+    "db:migrate": "npm run db:migrate -w @veltrix/web",
+    "db:deploy": "npm run db:deploy -w @veltrix/web",
+    "db:seed": "npm run db:seed -w @veltrix/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @veltrix/web"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "overrides": {
+    "react-is": "19.2.8",
+    "postcss": "8.5.30",
+    "deepmerge-ts": "8.0.0"
+  }
+}
