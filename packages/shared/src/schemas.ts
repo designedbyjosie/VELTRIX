@@ -387,3 +387,62 @@ export const advisorChangeSchema = z.discriminatedUnion("action", [
 ]);
 export type AdvisorChange = z.infer<typeof advisorChangeSchema>;
 export const MAX_CHANGES_PER_PROPOSAL = 10;
+
+// ---------- Planning: assumptions, scenarios, decisions, stress tests ----------
+const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
+const posCents = cents.refine((v) => v > 0, "Must be greater than zero");
+const monthIdx = z.number().int().min(0).max(119);
+const label = shortText(80).min(1);
+
+export const planningAssumptionsSchema = z.object({
+  emergencyMonths: z.number().min(0).max(24).optional(),
+  annualReturnPct: z.object({ best: z.number().min(-50).max(50), expected: z.number().min(-50).max(50), adverse: z.number().min(-90).max(50) }).optional(),
+  spendingVariancePct: z.number().min(0).max(100).nullable().optional(),
+  essentialCategories: z.array(z.string().max(64)).max(40).optional(),
+  excludedAccountIds: z.array(id).max(100).optional(),
+  debts: z.record(id, z.object({ aprPercent: z.number().min(0).max(100).nullable(), monthlyPaymentCents: z.number().int().min(0).max(100_000_000) })).optional(),
+});
+export type PlanningAssumptionsInput = z.infer<typeof planningAssumptionsSchema>;
+
+export const scenarioChangeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("one_time"), label, amountCents: cents.refine((v) => v !== 0, "Can't be zero"), month: monthIdx }),
+  z.object({ kind: z.literal("income"), label, percent: z.number().min(-100).max(500).optional(), amountCents: cents.optional(), startMonth: monthIdx, months: z.number().int().min(1).max(120).nullable() }),
+  z.object({ kind: z.literal("expense"), label, bucket: z.enum(["essential", "discretionary"]), percent: z.number().min(-100).max(500).optional(), amountCents: cents.optional(), startMonth: monthIdx, months: z.number().int().min(1).max(120).nullable() }),
+  z.object({ kind: z.literal("extra_saving"), label, amountCents: posCents, startMonth: monthIdx, goalId: id.nullable().optional() }),
+  z.object({ kind: z.literal("extra_debt_payment"), label, amountCents: posCents, startMonth: monthIdx }),
+  z.object({ kind: z.literal("financed_purchase"), label, amountCents: posCents, months: z.number().int().min(1).max(120), aprPercent: z.number().min(0).max(100), startMonth: monthIdx }),
+]);
+
+export const scenarioRequestSchema = z.object({
+  changes: z.array(scenarioChangeSchema).max(12),
+  horizonMonths: z.number().int().min(3).max(120).default(24),
+});
+
+export const decisionRequestSchema = z.object({
+  label: label,
+  priceCents: posCents,
+  categorySlug: z.enum(budgetCategorySlugs).nullable().optional(),
+  financing: z.object({ months: z.number().int().min(1).max(120), aprPercent: z.number().min(0).max(100) }).nullable().optional(),
+  alternative: z.object({ label, priceCents: posCents }).nullable().optional(),
+  waitMonths: z.number().int().min(1).max(24).optional(),
+  usesPerMonth: z.number().min(0).max(1000).nullable().optional(),
+  horizonMonths: z.number().int().min(6).max(60).default(24),
+});
+
+export const stressRequestSchema = z.object({
+  incomeLossMonths: z.number().int().min(0).max(24).default(0),
+  incomeReplacementPct: z.number().min(0).max(100).default(0),
+  emergencyCostCents: z.number().int().min(0).max(100_000_000_00).default(0),
+  essentialIncreaseCents: z.number().int().min(0).max(100_000_000).default(0),
+  discretionaryCutPct: z.number().min(0).max(100).default(0),
+  horizonMonths: z.number().int().min(3).max(36).default(12),
+});
+
+export const planSnapshotCreateSchema = z.object({
+  name: label,
+  kind: z.enum(["scenario", "purchase", "stress"]),
+  changes: z.array(scenarioChangeSchema).max(12),
+  horizonMonths: z.number().int().min(3).max(120).default(24),
+  decision: z.object({ label, priceCents: posCents, verdict: z.enum(["fits", "consider", "risk"]), choice: z.enum(["buy_now", "buy_later", "alternative", "financed", "skip", "undecided"]) }).nullable().optional(),
+  note: shortText(500).optional().default(""),
+});
