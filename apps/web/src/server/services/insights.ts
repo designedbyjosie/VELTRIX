@@ -116,10 +116,12 @@ export async function computeInsights(userId: string, timezone = "UTC", currency
     db.watchlistItem.findMany({ where: { watchlist: { userId } }, select: { instrument: { select: { symbol: true, name: true } } } }),
   ]);
   const activeLines = budgets.filter((b) => !b.archived).flatMap((b) => b.lines);
-  const live = recurring.filter((r) => r.status !== "DISMISSED" && r.currency === currency);
+  // Charges with an open savings plan are tracked there, not repeated as opportunities.
+  const inProgress = new Set((await db.opportunityWorkflow.findMany({ where: { userId, stage: { in: ["prepared", "approved", "action_taken"] } }, select: { recurringId: true } })).map((w) => w.recurringId));
+  const live = recurring.filter((r) => r.status !== "DISMISSED" && r.currency === currency && !inProgress.has(r.id));
   /** Yearly cost at the latest charge, which reflects any recent price change. */
   const latestAnnual = (r: (typeof recurring)[number]) => Math.abs(r.evidence[r.evidence.length - 1]?.amountCents ?? r.amountCents) * PER_YEAR[r.frequency];
-  const recLink = (r: (typeof recurring)[number]): OpportunityLink => ({ type: "recurring", id: r.id, name: r.merchant, href: "/app/savings#subscriptions" });
+  const recLink = (r: (typeof recurring)[number]): OpportunityLink => ({ type: "recurring", id: r.id, name: r.merchant, href: "/app/bills" });
   const recConfidence = (r: (typeof recurring)[number]): [OpportunityConfidence, string] =>
     r.status === "CONFIRMED" ? ["high", "You confirmed this recurring charge."] : [r.occurrences >= 4 ? "medium" : "low", `Detected from ${r.occurrences} past charges; not yet confirmed by you.`];
 
@@ -140,8 +142,8 @@ export async function computeInsights(userId: string, timezone = "UTC", currency
       rationale: "A renewal you no longer need is simplest to stop before it charges, and this one lands in a category that's already stretched.",
       calculation: `${fmt(line.spentCents)} spent + ${fmt(nextCharge)} renewal (same as the latest charge) = ${fmt(after)} vs ${fmt(line.limitCents)} limit. Cancelling would avoid about ${fmt(nextCharge * PER_YEAR[r.frequency])} a year.`,
       assumptions: ["Renewal date and amount are inferred from past charges and may differ.", "Any saving only happens if you cancel or downgrade."],
-      action: "Review subscription",
-      actionHref: "/app/savings#subscriptions",
+      action: "Plan to cancel or lower it",
+      actionHref: `/app/bills?start=${r.id}&kind=cancel`,
       estimateCents: nextCharge,
       estimateType: "CONFIRMED",
       evidence: {
@@ -173,8 +175,8 @@ export async function computeInsights(userId: string, timezone = "UTC", currency
       rationale: "Price increases on recurring charges are easy to miss, and they quietly reduce the surplus your goals depend on.",
       calculation: `Latest charge ${fmt(change.latestCents)} − typical earlier charge ${fmt(change.previousCents)} (median) = ${fmt(change.increaseCents)} × ${PER_YEAR[r.frequency]} charges a year = ${fmt(annual)}.`,
       assumptions: ["Assumes the new price continues.", "A one-off extra (like a pro-rated charge) can look like an increase."],
-      action: "Review recurring charges",
-      actionHref: "/app/savings#subscriptions",
+      action: "Ask for a lower price",
+      actionHref: `/app/bills?start=${r.id}&kind=negotiate`,
       estimateCents: annual,
       estimateType: "CONFIRMED",
       evidence: { rows: r.evidence.slice(-4).map((e) => ({ label: `Charged ${shortDay(e.date)}`, value: fmt(Math.abs(e.amountCents)) })) },
@@ -335,8 +337,8 @@ export async function computeInsights(userId: string, timezone = "UTC", currency
         .map((s) => `${s.merchant}: latest ${fmt(latestAnnual(s) / PER_YEAR[s.frequency])} × ${s.frequency.toLowerCase()} → ${fmt(latestAnnual(s))}/yr`)
         .join("; "),
       assumptions: ["Amounts and frequency are inferred from past charges and may change.", "The saving is only realised for subscriptions you actually cancel."],
-      action: "Review subscriptions",
-      actionHref: "/app/savings#subscriptions",
+      action: "Review in Bills & subscriptions",
+      actionHref: "/app/bills",
       estimateCents: annual,
       estimateType: "POTENTIAL",
       evidence: { rows: subs.slice(0, 6).map((s) => ({ label: `${s.merchant}${s.status === "SUSPECTED" ? " (detected)" : ""}`, value: `${fmt(s.amountCents)} ${s.frequency.toLowerCase()}` })), savingsParts: subs.map((s) => ({ key: `rec:${s.id}`, cents: latestAnnual(s) })) },

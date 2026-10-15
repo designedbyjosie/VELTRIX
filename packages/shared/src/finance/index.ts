@@ -7,3 +7,4 @@ export * from "./portfolio";
 export * from "./scenario";
 export * from "./decision";
 export * from "./opportunity";
+export * from "./outcomes";

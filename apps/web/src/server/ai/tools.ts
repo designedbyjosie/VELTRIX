@@ -26,6 +26,8 @@ import { accountTypes, budgetCategorySlugs, DASHBOARD_WIDGET_IDS, goalKinds, MAX
 import { buildProfile } from "../services/twin";
 import { decidePurchase, runWhatIf, stressTest } from "../services/plan";
 import { activeMemory, markMemoryUsed, memoryEnabled } from "../services/memory";
+import { listWorkflows } from "../services/workflows";
+import { detectPriceIncrease } from "@veltrix/shared";
 
 export interface ToolContext {
   userId: string;
@@ -437,6 +439,45 @@ export const TOOLS: AdvisorTool<any>[] = [
     },
   },
 
+  {
+    name: "get_recurring_savings_plan",
+    description: "A prioritized plan for lowering recurring expenses: every recurring charge ranked by yearly cost at its latest price, recent price increases, which ones already have a cancel/negotiate plan and its status, and links to start a plan. VELTRIX can't contact providers; the user acts and VELTRIX confirms outcomes from transactions.",
+    input: z.object({}),
+    jsonSchema: noArgs,
+    async run(ctx) {
+      const [rec, wfs] = await Promise.all([listRecurring(ctx.userId), listWorkflows(ctx.userId)]);
+      const perYear: Record<string, number> = { WEEKLY: 52, MONTHLY: 12, QUARTERLY: 4, YEARLY: 1 };
+      const rows = rec
+        .filter((r) => r.status !== "DISMISSED" && r.currency === ctx.currency && perYear[r.frequency])
+        .map((r) => {
+          const latest = Math.abs(r.evidence[r.evidence.length - 1]?.amountCents ?? r.amountCents);
+          const inc = detectPriceIncrease(r.evidence);
+          const wf = wfs.find((w) => w.recurringId === r.id && w.stage !== "abandoned");
+          return { r, latest, yearly: latest * perYear[r.frequency], inc, wf };
+        })
+        .sort((a, b) => Number(!!b.inc) - Number(!!a.inc) || b.yearly - a.yearly);
+      return {
+        label: "Recurring savings plan",
+        provenance: ["user", "estimate"],
+        link: { label: "Open Bills & subscriptions", href: "/app/bills" },
+        data: {
+          totalYearly: formatMoney(rows.reduce((s, x) => s + x.yearly, 0), ctx.currency),
+          charges: rows.slice(0, 12).map((x) => ({
+            merchant: x.r.merchant,
+            perCharge: formatMoney(x.latest, ctx.currency),
+            frequency: x.r.frequency.toLowerCase(),
+            yearly: formatMoney(x.yearly, ctx.currency),
+            confirmedByUser: x.r.status === "CONFIRMED",
+            priceIncrease: x.inc ? `${x.inc.percent}% (from ${formatMoney(x.inc.previousCents, ctx.currency)})` : null,
+            plan: x.wf ? `${x.wf.kind} — ${x.wf.stage.replace("_", " ")}` : null,
+            startCancel: x.wf ? null : `/app/bills?start=${x.r.id}&kind=cancel`,
+            startNegotiate: x.wf ? null : `/app/bills?start=${x.r.id}&kind=negotiate`,
+          })),
+          note: "Estimates only. Savings count once a later transaction confirms the charge stopped or dropped.",
+        },
+      };
+    },
+  },
   {
     name: "get_memory",
     description: "Preferences and goals the user deliberately saved to VELTRIX's financial memory (reserve target, savings milestones, budgeting method, research interests, spending priorities, planning caution, notes). Only enabled items are returned; returns nothing when memory is switched off.",

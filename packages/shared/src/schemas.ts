@@ -483,3 +483,15 @@ export const memoryValueSchema = z.discriminatedUnion("kind", [
 export type MemoryValue = z.infer<typeof memoryValueSchema>;
 export const memoryUpdateSchema = z.object({ value: memoryValueSchema.optional(), enabled: z.boolean().optional() });
 export const memorySettingsSchema = z.object({ enabled: z.boolean() });
+
+// ---------- Opportunity workflows ----------
+export const workflowStartSchema = z.object({ recurringId: id, kind: z.enum(["cancel", "negotiate"]) });
+export const workflowUpdateSchema = z.object({
+  checklist: z.array(z.object({ id: z.string().max(40), done: z.boolean() })).max(20).optional(),
+  targetCents: z.number().int().min(0).max(100_000_000).nullable().optional(),
+  contactUrl: httpsUrl.nullable().optional(),
+  notes: shortText(1000).optional(),
+  draft: z.string().max(4000).optional(),
+});
+export const workflowActionSchema = z.object({ date: isoDate, newPriceCents: z.number().int().min(0).max(100_000_000).nullable().optional(), note: shortText(200).optional() });
+export const workflowAbandonSchema = z.object({ reason: shortText(200).optional() });

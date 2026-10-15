@@ -104,3 +104,21 @@ export function merchantKey(merchant: string): string {
     .trim()
     .replace(/\s+/g, " ");
 }
+
+const MERCHANT_NOISE = /\b(www|com|net|org|co|us|uk|online|digital|payment|payments|pmt|bill|billing|subscription|subscr|recurring|purchase|pos|debit|ach|autopay)\b/g;
+
+/**
+ * Whether two bank descriptors refer to the same merchant ("Netflix" / "NETFLIX.COM" /
+ * "Netflix Subscription"). Conservative: after removing web and billing words, the names
+ * must match, or share a distinctive first word of at least 6 letters.
+ */
+export function sameMerchant(a: string, b: string): boolean {
+  const clean = (m: string) => merchantKey(m).replace(MERCHANT_NOISE, " ").replace(/\s+/g, " ").trim();
+  const x = clean(a);
+  const y = clean(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const fx = x.split(" ")[0];
+  const fy = y.split(" ")[0];
+  return fx === fy && fx.length >= 6;
+}

@@ -213,6 +213,21 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
     };
   }
 
+  if (/\b(lower|reduce|cut|trim|save on|cheaper)\b.*\b(recurring|bills?|subscriptions?|expenses|fixed costs)\b|\bwhich (subscriptions|bills) (should|could) i (cancel|cut)\b/.test(q)) {
+    const d = await call("get_recurring_savings_plan");
+    if (!d.charges.length) return { text: "I haven't found recurring charges yet. They're detected after about three months of transactions with the same merchant.", tools: used };
+    return {
+      text: [
+        `Your recurring charges add up to about ${d.totalYearly} a year. Here's where to start, price increases first, then the largest:`,
+        ...d.charges.slice(0, 6).map((x: Data) => bullet(`${x.merchant}: ${x.perCharge} ${x.frequency} (${x.yearly}/yr)${x.priceIncrease ? `, up ${x.priceIncrease}` : ""}${x.plan ? ` · plan: ${x.plan}` : ""}${x.confirmedByUser ? "" : " · detected, not confirmed by you"}`)),
+        "",
+        "For each one you can plan to cancel or ask for a lower price on the Bills & subscriptions page. VELTRIX prepares the steps and a message; you contact the provider, and VELTRIX confirms the result from your transactions.",
+        d.note,
+      ].join("\n"),
+      tools: used,
+    };
+  }
+
   if (/(subscription|recurring|cancel)/.test(q)) {
     const d = await call("get_recurring_payments");
     if (!d.items.length) return { text: "I haven't found recurring charges yet. Detection needs at least three months of transactions with the same merchant and a similar amount.", tools: used };

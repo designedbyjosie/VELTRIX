@@ -32,6 +32,9 @@ export type AuditType =
   | "advisor.change_applied"
   | "memory.saved"
   | "memory.deleted"
+  | "workflow.started"
+  | "workflow.action_reported"
+  | "workflow.outcome_confirmed"
   | "consent.changed"
   | "security.rate_limited"
   | "security.origin_rejected";

@@ -110,7 +110,7 @@ export function OpportunitiesView({ initial, currency }: { initial: Overview; cu
         <div className="panel p-4">
           <p className="text-xs text-ink3">Possible savings</p>
           <p className="num mt-1 font-display text-2xl font-semibold text-cyan">{data.potentialSavingsCents ? `${money(data.potentialSavingsCents, c, { noCents: true })}/yr` : "—"}</p>
-          <p className="text-[11px] text-ink3">Not saved yet. Only if you act. Each charge counted once.</p>
+          <p className="text-[11px] text-ink3">Not saved yet. Only if you act. Each charge counted once. <Link href="/app/outcomes" className="text-cyan hover:underline">See confirmed results</Link></p>
         </div>
         <div className="panel flex flex-col justify-between p-4">
           <div>

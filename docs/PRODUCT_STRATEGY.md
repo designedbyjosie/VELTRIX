@@ -57,9 +57,15 @@ The advisor calls `get_financial_profile`, `run_what_if`, `review_purchase` and 
 - **VELTRIX:** only items the user deliberately saves (`MemoryItem`): reserve target, savings milestones, budgeting method, research interests, spending priorities (important or flexible), planning caution, and free-text notes, with card numbers, IDs and passwords blocked. Each item can be edited, switched off or deleted; there's a master switch and "forget everything". Saved items change real calculations: the reserve target sets the plan's target, caution widens the spending range, flexible categories lead the stress-test steps, priorities are mentioned (never judged) in purchase reviews, and research tickers feed Opportunities. The advisor gets enabled items as context and can *propose* a memory, which the user applies. Each item shows when it was last used, and memory is included in the data export.
 - **Success metric:** share of users with at least one enabled memory item; how often an item is switched off soon after it's applied (a sign of a poor suggestion).
 
+### 9. Recurring-expense workflows and Outcome Ledger, built
+- **Problem:** apps point out subscriptions and price increases, but nobody checks whether cancelling or negotiating actually happened, so "savings" are claimed rather than measured.
+- **Alternatives:** bill-negotiation services take a cut of claimed savings; subscription trackers list charges but stop at the alert.
+- **VELTRIX:** Bills & Subscriptions shows each recurring charge with evidence, price changes and a 60-day calendar. A plan to cancel or lower a price carries the evidence, yearly cost, effect on the user's plan, saved priorities, a checklist and an editable draft; the user approves it, acts, and reports the date. VELTRIX then verifies the result from later transactions and doesn't count missing data as proof. The Outcome Ledger keeps identified, planned, in progress, confirmed and realized amounts separate, and the advisor can rank recurring charges to lower.
+- **Success metric:** confirmed annual savings and realized savings per active user; the share of plans that reach "confirmed" vs. "not confirmed".
+
 ## Next, in dependency order
 
-1. **Permissions center and autopilot:** per-capability toggles, pending actions and action history. It builds on the advisor-actions model (proposed → applied/dismissed, audited). The scope stays at read-only analysis and proposals; nothing moves money.
+1. **Permissions center and autopilot:** (includes pending workflows and their history) per-capability toggles, pending actions and action history. It builds on the advisor-actions model (proposed → applied/dismissed, audited). The scope stays at read-only analysis and proposals; nothing moves money.
 2. **Data-source status page:** connection health, last sync, permission scope and limitations for Plaid, Finnhub, FX and email. Partly present in Settings → Integrations and the profile issues list.
 3. **Opportunity radar:** verified offers and price changes only, with source, date and eligibility. It needs merchant and travel price feeds (not configured), so it shows "possible" rather than "verified" until those exist.
 

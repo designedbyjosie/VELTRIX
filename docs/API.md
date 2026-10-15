@@ -56,6 +56,12 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/memory` | GET POST DELETE | session | List (with master switch) · save a typed preference · forget everything |
 | `/api/memory/:id` | PATCH DELETE | session | `{value?, enabled?}` · delete |
 | `/api/memory/settings` | PATCH | session | `{enabled}` master switch |
+| `/api/workflows` | GET POST | session | Outcome ledger (totals + entries) · start a plan `{recurringId, kind: cancel\|negotiate}` (returns the open one if it exists) |
+| `/api/workflows/:id` | GET PATCH | session | Workflow with evidence, calculation and plan effect · `{checklist?, targetCents?, contactUrl?, notes?, draft?}` |
+| `/api/workflows/:id/approve` | POST | session | Approve the prepared plan (409 at the wrong stage) |
+| `/api/workflows/:id/action` | POST | session | `{date, newPriceCents?, note?}` report what you did, then verify |
+| `/api/workflows/:id/verify` | POST | session | Re-check the outcome against later transactions (idempotent) |
+| `/api/workflows/:id/abandon` | POST | session | Stop the plan |
 | `/api/portfolio`, `/api/portfolio/performance?range=` | GET | session | Checks price alerts |
 | `/api/holdings`, `/api/holdings/:id` | POST · DELETE | session | Investment/retirement accounts only |
 | `/api/markets/search?q=`, `/api/markets/:symbol?range=` | GET | session | Data-source label included |
