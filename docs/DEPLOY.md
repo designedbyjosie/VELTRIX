@@ -16,6 +16,7 @@
 
 Notes:
 - `npm run db:seed` only creates the built-in categories, so it's safe to run against production. The app also creates them when the first user registers.
+- **Test account with sample data (optional):** from your computer, run `DATABASE_URL="<your Neon connection string>" DEMO_PASSWORD="<a private password, 12+ characters>" npm run db:seed:demo`. It creates `demo@veltrix.app` (or `DEMO_EMAIL`) with email already confirmed and about 500 sample transactions, accounts, budgets, goals, trips and saved products, all labelled as demo data. Running it again refreshes the dates. A password is required for any non-local database so the account isn't open to anyone who reads these docs.
 - Vercel's Hobby plan is for personal, non-commercial use, and its cron jobs run once a day. Check current plan terms before launching commercially.
 - Without SMTP settings in production, sign-up can't send verification emails, so new users can't get in. Set SMTP before sharing the link.
 - Exchange rates come from Frankfurter (ECB) with no key. Check each provider's terms (Finnhub, Plaid, Frankfurter) before commercial use.

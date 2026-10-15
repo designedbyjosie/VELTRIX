@@ -14,6 +14,7 @@
     "db:migrate": "npm run db:migrate -w @veltrix/web",
     "db:deploy": "npm run db:deploy -w @veltrix/web",
     "db:seed": "npm run db:seed -w @veltrix/web",
+    "db:seed:demo": "npm run db:seed:demo -w @veltrix/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
