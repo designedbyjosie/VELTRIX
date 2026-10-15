@@ -8,6 +8,7 @@ import { Badge, Button, Card, ConfirmButton, DemoBadge, Field, FormError, Input,
 import { TwoFactorCard } from "./two-factor";
 import { api, ApiError } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
+import { EVENT_LABELS } from "@/lib/audit-labels";
 
 interface Props {
   profile: { displayName: string; email: string; baseCurrency: string; timezone: string; hasDemoData: boolean };
@@ -20,7 +21,7 @@ interface Props {
   mfa: { enabled: boolean; recoveryCodesRemaining: number };
 }
 
-function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description: ReactNode }) {
+export function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description: ReactNode }) {
   return (
     <label className="flex cursor-pointer items-start justify-between gap-4 py-3">
       <span>
@@ -36,41 +37,6 @@ function Toggle({ checked, onChange, label, description }: { checked: boolean; o
   );
 }
 
-const EVENT_LABELS: Record<string, string> = {
-  "auth.register": "Account created",
-  "auth.login": "Signed in",
-  "auth.login_failed": "Failed sign-in",
-  "auth.logout": "Signed out",
-  "auth.password_changed": "Password changed",
-  "auth.email_verified": "Email confirmed",
-  "auth.password_reset_requested": "Password reset requested",
-  "auth.password_reset": "Password reset by email link",
-  "auth.account_locked": "Sign-in locked after failed attempts",
-  "auth.mfa_enabled": "Two-factor sign-in turned on",
-  "auth.mfa_disabled": "Two-factor sign-in turned off",
-  "auth.mfa_recovery_regenerated": "New backup codes created",
-  "auth.mfa_failed": "Incorrect two-factor code",
-  "bank.connected": "Bank connected",
-  "bank.removed": "Bank connection removed",
-  "session.revoked": "Session revoked",
-  "extension.pairing_code_created": "Extension pairing code created",
-  "extension.paired": "Browser extension connected",
-  "extension.token_revoked": "Browser extension disconnected",
-  "data.exported": "Data exported",
-  "data.demo_loaded": "Demo data loaded",
-  "data.demo_removed": "Demo data removed",
-  "data.csv_imported": "Transactions imported",
-  "setup.completed": "Guided setup completed",
-  "advisor.change_applied": "Advisor change applied",
-  "memory.saved": "Saved to financial memory",
-  "memory.deleted": "Removed from financial memory",
-  "workflow.started": "Savings plan started",
-  "workflow.action_reported": "You reported acting on a savings plan",
-  "workflow.outcome_confirmed": "Savings outcome confirmed",
-  "consent.changed": "Privacy choice changed",
-  "security.rate_limited": "Too many requests blocked",
-  "security.origin_rejected": "Cross-site request blocked",
-};
 
 function PairExtension() {
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
@@ -211,7 +177,13 @@ export function SettingsView({ profile, preference, consents: initialConsents, s
       </Card>
 
       <Card id="privacy" title={<span className="flex items-center gap-2"><ShieldCheck className="size-4 text-cyan" /> Privacy & consent</span>}>
-        <p className="text-xs text-ink2">Optional processing is off until you turn it on. You can withdraw at any time; each change is recorded.</p>
+        <p className="text-xs text-ink2">
+          Optional processing is off until you turn it on. You can withdraw at any time; each change is recorded. See everything in one place in{" "}
+          <a href="/app/privacy" className="text-cyan hover:underline">
+            Privacy &amp; Permissions
+          </a>
+          .
+        </p>
         <div className="divide-y divide-line-soft">
           <Toggle
             label="AI processing"

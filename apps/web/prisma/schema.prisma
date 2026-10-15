@@ -326,17 +326,26 @@ model UserProfile {
 }
 
 model UserPreference {
-  userId               String   @id
-  notifyBudget         Boolean  @default(true)
-  notifyPriceDrops     Boolean  @default(true)
-  notifyGoals          Boolean  @default(true)
-  extensionAutoAnalyze Boolean  @default(true)
+  userId                   String    @id
+  notifyBudget             Boolean   @default(true)
+  notifyPriceDrops         Boolean   @default(true)
+  notifyGoals              Boolean   @default(true)
+  extensionAutoAnalyze     Boolean   @default(true)
   /// Opportunity kinds the user muted.
-  mutedInsightKinds    String[] @default([])
+  mutedInsightKinds        String[]  @default([])
   /// Master switch for financial memory (saved preferences used by the advisor and plans).
-  memoryEnabled        Boolean  @default(true)
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memoryEnabled            Boolean   @default(true)
+  /// "immediate" | "daily" | "weekly" | "off" for proactive notifications.
+  notifyFrequency          String    @default("immediate")
+  /// Local hours (0–23); both null means no quiet hours.
+  quietHoursStart          Int?
+  quietHoursEnd            Int?
+  /// Proactive notifications are not created until this moment.
+  notificationsPausedUntil DateTime?
+  /// When off, the advisor can't propose changes to your data.
+  advisorProposals         Boolean   @default(true)
+  updatedAt                DateTime  @updatedAt
+  user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 /// Browser session. Only a SHA-256 hash of the cookie token is stored.
@@ -1050,10 +1059,13 @@ model Notification {
   dedupeKey String
   readAt    DateTime?
   createdAt DateTime  @default(now())
+  /// Held until this moment by quiet hours or a digest schedule.
+  deliverAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, dedupeKey])
   @@index([userId, readAt])
+  @@index([userId, deliverAt])
 }
 
 /// Append-only. The latest record per purpose is the user's current choice.

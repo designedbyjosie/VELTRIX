@@ -158,6 +158,11 @@ export interface ProposalResult {
 /** Validate and store proposed changes for a conversation. Nothing is applied. */
 export async function proposeChanges(userId: string, conversationId: string, raw: unknown[], ctx: ActionCtx): Promise<ProposalResult> {
   const result: ProposalResult = { proposed: [], rejected: [] };
+  const pref = await db.userPreference.findUnique({ where: { userId }, select: { advisorProposals: true } });
+  if (pref?.advisorProposals === false) {
+    result.rejected.push({ change: null, reason: "You've turned off advisor proposals in Privacy & Permissions, so the advisor can't suggest changes to your data. You can make the change yourself, or turn proposals back on." });
+    return result;
+  }
   for (const item of raw.slice(0, MAX_CHANGES_PER_PROPOSAL)) {
     const parsed = advisorChangeSchema.safeParse(item);
     if (!parsed.success) {
@@ -215,6 +220,7 @@ export async function applyAction(userId: string, id: string, ctx: ActionCtx) {
 export async function dismissAction(userId: string, id: string) {
   await getPending(userId, id);
   await db.advisorAction.update({ where: { id }, data: { status: "DISMISSED" } });
+  await audit("advisor.change_dismissed", { userId, metadata: { kind: (await db.advisorAction.findUniqueOrThrow({ where: { id }, select: { kind: true } })).kind } });
   return serializeAction(await db.advisorAction.findUniqueOrThrow({ where: { id } }));
 }
 

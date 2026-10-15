@@ -56,6 +56,10 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/memory` | GET POST DELETE | session | List (with master switch) · save a typed preference · forget everything |
 | `/api/memory/:id` | PATCH DELETE | session | `{value?, enabled?}` · delete |
 | `/api/memory/settings` | PATCH | session | `{enabled}` master switch |
+| `/api/privacy` | GET | session | Data sources with live counts and status, outside services, permissions, things VELTRIX can't do, notification settings and held notifications, pending proposals and plans |
+| `/api/privacy/history` | GET | session | Activity history `?group=security\|connections\|data\|advisor\|privacy&cursor=&limit=` |
+| `/api/privacy/delete` | POST | session | `{source: extension_history\|advisor_conversations\|notifications}` delete one source's data |
+| `/api/privacy/release` | POST | session | Show notifications held by quiet hours or a digest now |
 | `/api/workflows` | GET POST | session | Outcome ledger (totals + entries) · start a plan `{recurringId, kind: cancel\|negotiate}` (returns the open one if it exists) |
 | `/api/workflows/:id` | GET PATCH | session | Workflow with evidence, calculation and plan effect · `{checklist?, targetCents?, contactUrl?, notes?, draft?}` |
 | `/api/workflows/:id/approve` | POST | session | Approve the prepared plan (409 at the wrong stage) |
@@ -80,7 +84,7 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/reports?period=monthly\|yearly` | GET | session | |
 | `/api/notifications` | GET POST | session | POST `{id}` or `{id:"all"}` marks read |
 | `/api/search?q=` | GET | session | Transactions, instruments, goals, products, articles, insights, trips |
-| `/api/settings/profile`, `/preferences`, `/consent`, `/password` | GET PATCH · PATCH · GET POST · POST | session | |
+| `/api/settings/profile`, `/preferences`, `/consent`, `/password` | GET PATCH · PATCH · GET POST · POST | session | Preferences also take `notifyFrequency`, `quietHoursStart`/`quietHoursEnd` (both or neither), `notificationsPausedUntil`, `advisorProposals` |
 | `/api/settings/sessions[/:id]`, `/api/settings/tokens/:id` | GET · DELETE | session | Sessions, extension tokens, audit events |
 | `/api/settings/export?format=json\|csv` | GET | session | 10/hour |
 | `/api/settings/demo` | DELETE | session | Remove legacy sample data |

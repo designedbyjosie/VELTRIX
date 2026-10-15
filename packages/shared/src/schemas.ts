@@ -223,7 +223,16 @@ export const preferenceUpdateSchema = z.object({
   notifyPriceDrops: z.boolean().optional(),
   notifyGoals: z.boolean().optional(),
   extensionAutoAnalyze: z.boolean().optional(),
+  notifyFrequency: z.enum(["immediate", "daily", "weekly", "off"]).optional(),
+  quietHoursStart: z.number().int().min(0).max(23).nullable().optional(),
+  quietHoursEnd: z.number().int().min(0).max(23).nullable().optional(),
+  notificationsPausedUntil: z.coerce.date().nullable().optional(),
+  advisorProposals: z.boolean().optional(),
+}).superRefine((v, ctx) => {
+  if ((v.quietHoursStart === null) !== (v.quietHoursEnd === null) || (v.quietHoursStart === undefined) !== (v.quietHoursEnd === undefined))
+    ctx.addIssue({ code: "custom", path: ["quietHoursEnd"], message: "Set both a start and an end for quiet hours, or neither." });
 });
+export const privacySourceDeleteSchema = z.object({ source: z.enum(["extension_history", "advisor_conversations", "notifications"]) });
 export const deleteAccountSchema = z.object({ password: z.string().min(1).max(200), confirm: z.literal("DELETE", { errorMap: () => ({ message: 'Type DELETE to confirm' }) }) });
 
 // ---------- Extension ----------

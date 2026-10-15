@@ -155,6 +155,7 @@ export async function deleteAllMemory(userId: string) {
 
 export async function setMemoryEnabled(userId: string, enabled: boolean) {
   await db.userPreference.upsert({ where: { userId }, create: { userId, memoryEnabled: enabled }, update: { memoryEnabled: enabled } });
+  await audit("privacy.permission_changed", { userId, metadata: { permission: "memoryEnabled", enabled } });
   return enabled;
 }
 

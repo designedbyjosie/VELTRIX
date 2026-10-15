@@ -7,3 +7,4 @@ export * from "./finance";
 export * from "./tokens";
 export * from "./dashboard";
 export type { PageExtraction, PageType, ExtractedProduct, ExtractedArticle, ExtractedTravel } from "./extract";
+export * from "./delivery";

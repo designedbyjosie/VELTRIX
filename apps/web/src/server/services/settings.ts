@@ -4,6 +4,7 @@ import { db } from "../db";
 import { notFound } from "../errors";
 import { cents } from "../money";
 import { ymd } from "../dates";
+import { audit } from "../audit";
 
 export async function updateProfile(userId: string, input: z.infer<typeof profileUpdateSchema>) {
   if (input.timezone) {
@@ -16,8 +17,14 @@ export async function updateProfile(userId: string, input: z.infer<typeof profil
   return db.userProfile.update({ where: { userId }, data: { displayName: input.displayName, baseCurrency: input.baseCurrency, timezone: input.timezone } });
 }
 
+const NOTIFICATION_FIELDS = ["notifyFrequency", "quietHoursStart", "quietHoursEnd", "notificationsPausedUntil"] as const;
+
 export async function updatePreferences(userId: string, input: z.infer<typeof preferenceUpdateSchema>) {
-  return db.userPreference.upsert({ where: { userId }, create: { userId, ...input }, update: input });
+  const row = await db.userPreference.upsert({ where: { userId }, create: { userId, ...input }, update: input });
+  const changed = NOTIFICATION_FIELDS.filter((k) => input[k] !== undefined);
+  if (changed.length) await audit("privacy.notifications_changed", { userId, metadata: { fields: changed, frequency: row.notifyFrequency, paused: !!row.notificationsPausedUntil && row.notificationsPausedUntil > new Date() } });
+  if (input.advisorProposals !== undefined) await audit("privacy.permission_changed", { userId, metadata: { permission: "advisorProposals", enabled: input.advisorProposals } });
+  return row;
 }
 
 export async function listSessions(userId: string, currentSessionId?: string) {
