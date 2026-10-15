@@ -27,6 +27,7 @@ import { buildProfile } from "../services/twin";
 import { decidePurchase, runWhatIf, stressTest } from "../services/plan";
 import { activeMemory, markMemoryUsed, memoryEnabled } from "../services/memory";
 import { listWorkflows } from "../services/workflows";
+import { opportunityMap } from "../services/opportunity-map";
 import { detectPriceIncrease } from "@veltrix/shared";
 
 export interface ToolContext {
@@ -475,6 +476,33 @@ export const TOOLS: AdvisorTool<any>[] = [
           })),
           note: "Estimates only. Savings count once a later transaction confirms the charge stopped or dropped.",
         },
+      };
+    },
+  },
+  {
+    name: "get_opportunity_map",
+    description: "The user's Personal Opportunity Map: ten areas (cash flow, emergency reserve, borrowing costs, income, major purchase, better-value products, travel, investing plan, records, complexity), each with where things stand, a possible impact only where it can be calculated (labelled possible savings, interest at stake, or a gap), effort, confidence and its basis, time to benefit, missing data, and the next step. The user's chosen focus areas come first. Use for 'where should I focus' or 'what should I work on'. Never present a possible impact as guaranteed.",
+    input: z.object({}),
+    jsonSchema: noArgs,
+    async run(ctx) {
+      const map = await opportunityMap(ctx.userId, { timezone: ctx.timezone, currency: ctx.currency });
+      const show = (a: (typeof map.areas)[number]) => ({
+        area: a.title,
+        status: a.status,
+        position: a.position,
+        impact: a.impact.cents !== null ? `${a.impact.label}: ${formatMoney(a.impact.cents, ctx.currency)} (${a.impact.basis})` : `${a.impact.label}. ${a.impact.basis}`,
+        effort: a.effort,
+        confidence: `${a.confidence} (${a.confidenceBasis})`,
+        timeToBenefit: a.timeToBenefit,
+        missing: a.dependencies,
+        nextStep: `${a.nextStep.label} → ${a.nextStep.href}`,
+        chosenFocus: map.prefs.focus.includes(a.id),
+      });
+      return {
+        label: "Your opportunity map",
+        provenance: ["user", "estimate"],
+        link: { label: "Open the opportunity map", href: "/app/map" },
+        data: { focusChosen: map.prefs.focus.length > 0, areas: map.areas.map(show), hiddenByUser: map.hidden.map((a) => a.title) },
       };
     },
   },

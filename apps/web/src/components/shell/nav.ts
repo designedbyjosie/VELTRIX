@@ -10,6 +10,7 @@ import {
   FileChartColumn,
   FlaskConical,
   Radar,
+  Map as MapIcon,
   House,
   Landmark,
   PiggyBank,
@@ -31,6 +32,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { href: "/app", label: "Home", icon: House },
   { href: "/app/plan", label: "What-if Lab", icon: FlaskConical },
+  { href: "/app/map", label: "Opportunity Map", icon: MapIcon },
   { href: "/app/opportunities", label: "Opportunities", icon: Radar },
   { href: "/app/bills", label: "Bills & Subscriptions", icon: Receipt },
   { href: "/app/outcomes", label: "Outcome Ledger", icon: BadgeCheck },

@@ -504,3 +504,9 @@ export const workflowUpdateSchema = z.object({
 });
 export const workflowActionSchema = z.object({ date: isoDate, newPriceCents: z.number().int().min(0).max(100_000_000).nullable().optional(), note: shortText(200).optional() });
 export const workflowAbandonSchema = z.object({ reason: shortText(200).optional() });
+
+// ---------- Opportunity map ----------
+const mapAreaId = z.enum(["cash_flow", "emergency_reserve", "borrowing_costs", "income", "major_purchase", "better_value", "travel", "investing", "records", "complexity"]);
+export const mapPrefsSchema = z
+  .object({ focus: z.array(mapAreaId).max(3, "Choose up to 3 areas that matter most.").optional(), hidden: z.array(mapAreaId).max(10).optional() })
+  .refine((v) => !v.focus || new Set(v.focus).size === v.focus.length, { message: "Each area can be chosen once.", path: ["focus"] });

@@ -344,6 +344,10 @@ model UserPreference {
   notificationsPausedUntil DateTime?
   /// When off, the advisor can't propose changes to your data.
   advisorProposals         Boolean   @default(true)
+  /// Opportunity Map areas the user said matter most, in order (max 3).
+  focusAreas               String[]  @default([])
+  /// Opportunity Map areas the user said aren't for them.
+  hiddenAreas              String[]  @default([])
   updatedAt                DateTime  @updatedAt
   user                     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

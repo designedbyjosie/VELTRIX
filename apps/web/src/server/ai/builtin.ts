@@ -213,6 +213,19 @@ export async function builtinAnswer(ctx: ToolContext, question: string): Promise
     };
   }
 
+  if (/\b(where should i (focus|start)|what should i (work on|focus on|prioriti[sz]e)|biggest opportunit|where can i (make progress|improve)|opportunity map)\b/.test(q)) {
+    const d = await call("get_opportunity_map");
+    const top = d.areas.filter((a: Data) => a.status !== "strong").slice(0, 4);
+    if (!top.length) return { text: "Every area on your opportunity map looks in good shape based on the data VELTRIX has. The map shows the details and what each estimate is based on.", tools: used };
+    return {
+      text: [
+        d.focusChosen ? "Starting with the areas you said matter most:" : "Here's where you could make the most progress, based on your data (you can choose your own priorities on the map):",
+        ...top.map((a: Data) => bullet(`**${a.area}**: ${a.position} ${a.impact.split(" (")[0]}. Effort: ${a.effort}; confidence: ${a.confidence.split(" (")[0]}. Next: ${a.nextStep.split(" → ")[0]}.`)),
+        "Possible amounts are estimates, not promises; each one shows how it was calculated on the map.",
+      ].join("\n"),
+      tools: used,
+    };
+  }
   if (/\b(lower|reduce|cut|trim|save on|cheaper)\b.*\b(recurring|bills?|subscriptions?|expenses|fixed costs)\b|\bwhich (subscriptions|bills) (should|could) i (cancel|cut)\b/.test(q)) {
     const d = await call("get_recurring_savings_plan");
     if (!d.charges.length) return { text: "I haven't found recurring charges yet. They're detected after about three months of transactions with the same merchant.", tools: used };

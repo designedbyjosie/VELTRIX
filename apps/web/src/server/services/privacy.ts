@@ -34,6 +34,7 @@ export const TOOL_DATA: Record<string, string> = {
   propose_changes: "Accounts, budgets and goals (names and amounts)",
   get_recurring_savings_plan: "Recurring charges",
   get_memory: "Financial memory",
+  get_opportunity_map: "Income, spending, balances, goals, trips, saved products and opportunities",
   get_financial_profile: "Income, spending, balances and plan assumptions",
   run_what_if: "Income, spending, balances and plan assumptions",
   review_purchase: "Income, spending, balances and plan assumptions",

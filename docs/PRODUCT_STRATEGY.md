@@ -69,6 +69,12 @@ The advisor calls `get_financial_profile`, `run_what_if`, `review_purchase` and 
 - **VELTRIX:** one page, built from live data, showing each data source (counts, sync status, purpose, who else receives it, how to delete), outside services, the permissions with what the advisor can look up, what VELTRIX can't do and why, everything waiting for a decision (apply or dismiss in place), proactive-notification controls (frequency, digests, quiet hours, pause, held notifications) and a filterable activity history. The advisor's ability to propose changes can be switched off.
 - **Success metric:** share of users who visit and change at least one setting; notification opt-outs vs. use of digests and quiet hours (a sign the volume is wrong).
 
+### 11. Personal Opportunity Map, built
+- **Problem:** suggestion feeds overwhelm, ignore what the user cares about, and mix guesses with facts.
+- **Alternatives:** generic "financial health scores" and checklists that aren't tied to the user's own numbers.
+- **VELTRIX:** ten areas built from the user's data, each with where they stand, a possible impact only when it can be calculated and labelled by type (possible savings, interest at stake, a gap to close), effort, confidence and why, time to benefit, what's missing, and one next step into an existing workflow. Users star up to three priorities (shown first, used by the advisor) and hide areas that aren't for them, and can compare areas side by side without implying amounts are additive or guaranteed.
+- **Success metric:** share of users who set priorities; clicks on next steps per area; areas moving from "not enough data" to a known status.
+
 ## Next, in dependency order
 
 1. **Autopilot scope:** the permissions center is built; any future automatic action must add its own permission there, off by default. per-capability toggles, pending actions and action history. It builds on the advisor-actions model (proposed → applied/dismissed, audited). The scope stays at read-only analysis and proposals; nothing moves money.

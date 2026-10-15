@@ -56,6 +56,7 @@ All endpoints are JSON. Request bodies and query strings are validated with the 
 | `/api/memory` | GET POST DELETE | session | List (with master switch) · save a typed preference · forget everything |
 | `/api/memory/:id` | PATCH DELETE | session | `{value?, enabled?}` · delete |
 | `/api/memory/settings` | PATCH | session | `{enabled}` master switch |
+| `/api/map` | GET PATCH | session | Personal Opportunity Map (areas in priority order, hidden areas, prefs) · `{focus?: area[] (≤3, ordered), hidden?: area[]}` |
 | `/api/privacy` | GET | session | Data sources with live counts and status, outside services, permissions, things VELTRIX can't do, notification settings and held notifications, pending proposals and plans |
 | `/api/privacy/history` | GET | session | Activity history `?group=security\|connections\|data\|advisor\|privacy&cursor=&limit=` |
 | `/api/privacy/delete` | POST | session | `{source: extension_history\|advisor_conversations\|notifications}` delete one source's data |
