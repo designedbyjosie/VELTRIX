@@ -1,7 +1,7 @@
 /**
  * EDIT ME — everything personal about the portfolio lives here.
- * Replace the placeholder values with your own details. Anything left as a
- * placeholder is shown with a dashed "fill me in" outline so you can spot it.
+ * Replace the placeholder values with your own details. `placeholders` lists
+ * the fields that still need your real information — clear it when you're done.
  */
 export const owner = {
   name: "Your Name",
@@ -32,10 +32,7 @@ export const owner = {
     "Right now I'm learning [what you're learning]. I'd love to spend the next year somewhere I can watch experienced designers work, ask too many questions, and ship things real people use.",
     "If anything here made you curious, write to me. I reply to everything.",
   ],
-  /** Placeholder flags let the UI highlight fields you still need to edit. */
+  /** Fields still holding placeholder text — a checklist for you, not used by the UI. */
   placeholders: ["name", "signature", "location", "email", "letter"],
 } as const;
 
-export function isPlaceholder(field: string) {
-  return (owner.placeholders as readonly string[]).includes(field);
-}

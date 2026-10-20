@@ -1453,6 +1453,9 @@
     aspect-ratio: 16 / 11;
     pointer-events: none;
   }
+  .desk-surface .desk-note__face {
+    font-size: 0;
+  }
   .desk-object__label,
   .desk-clip,
   .desk-drawer:not(.desk-drawer--inline) {

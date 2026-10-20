@@ -336,10 +336,12 @@
 }
 .cw-hero__note {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
+  left: clamp(16px, 4vw, 48px);
+  right: 16px;
+  top: 72px;
   margin: 0;
   font-size: 13px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 /* flat fallback */

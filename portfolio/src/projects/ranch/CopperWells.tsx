@@ -25,7 +25,9 @@ const times: [TimeOfDay, string][] = [
 export default function CopperWells({ path }: { path: string[] }) {
   const reduced = useReducedMotion();
   const [gl] = useState(webglAvailable);
-  const [mode, setMode] = useState<"3d" | "flat">(() => (webglAvailable() ? "3d" : "flat"));
+  const [mode, setMode] = useState<"3d" | "flat">(() =>
+    webglAvailable() && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "3d" : "flat",
+  );
   const [time, setTime] = useState<TimeOfDay>("dusk");
   const [arrived, setArrived] = useState(path[0] === "explore");
   const [riding, setRiding] = useState(false);
@@ -171,6 +173,7 @@ export default function CopperWells({ path }: { path: string[] }) {
           )}
         </div>
         {!gl && <p className="cw-hero__note">Showing the illustrated landscape — this browser doesn't support WebGL.</p>}
+        {gl && flat && reduced && <p className="cw-hero__note">Showing the still landscape because your device asks for reduced motion.</p>}
       </section>
 
       <Story />

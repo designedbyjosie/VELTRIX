@@ -1509,6 +1509,6 @@
   }
   .folder--opening,
   .folder--closing {
-    transform: rotateX(4deg) translateX(calc(var(--w) * 0.4)) scale(0.62);
+    transform: rotateX(4deg) translateX(calc(var(--w) * 0.3)) scale(0.62);
   }
 }

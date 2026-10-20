@@ -60,6 +60,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 26px;
   align-items: start;
+  grid-auto-flow: dense;
 }
 .cs-sheet {
   position: relative;

@@ -12,6 +12,7 @@ Every figure is calculated by the application from your records, your linked ban
 apps/web         Next.js 15 app: UI, API routes, services, Prisma schema & migrations
 apps/extension   Chrome/Edge MV3 extension (service worker, popup, options, on-demand extractor)
 packages/shared  Shared TypeScript: zod API contracts, money & finance calculations, CSV parsing, page extraction
+portfolio/       Four Worlds — standalone design-portfolio app (see portfolio/README.md)
 docs/            Architecture, API, deployment (DEPLOY.md) and product strategy (PRODUCT_STRATEGY.md)
 ```
 
