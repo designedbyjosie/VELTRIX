@@ -1,0 +1,159 @@
+/* ------------------------------------------------------------------
+   Global reset + the portfolio's own paper system.
+   Project worlds scope their styles under their own root class and
+   never inherit from .pf.
+------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: #efe6d6;
+  color: #2e2433;
+  min-height: 100vh;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+}
+img,
+svg {
+  max-width: 100%;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+:focus-visible {
+  outline: 2px solid #7c4f9e;
+  outline-offset: 3px;
+}
+
+:root {
+  --ivory: #f7f1e5;
+  --paper: #efe6d6;
+  --card: #d8bf95;
+  --card-deep: #c4a676;
+  --lavender: #b9a6cf;
+  --lavender-soft: #ddd1ea;
+  --plum: #5b3a5e;
+  --blush: #ecc9c7;
+  --ink: #2e2433;
+  --ink-soft: #5f5463;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .22 0 0 0 0 .15 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --f-script: "Pinyon Script", "Snell Roundhand", cursive;
+  --f-pixel: "Silkscreen", "Courier New", monospace;
+  --f-serif: "Cormorant Garamond", Georgia, serif;
+  --f-hand: "Caveat", "Comic Sans MS", cursive;
+  --ease-paper: cubic-bezier(0.22, 0.8, 0.2, 1);
+  --ease-hinge: cubic-bezier(0.65, 0, 0.25, 1);
+}
+
+.route-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  font-family: var(--f-pixel);
+  font-size: 12px;
+  color: #8a7f86;
+}
+
+/* ---------------- Portal transition ---------------- */
+.portal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  transition:
+    clip-path 0.72s var(--ease-hinge),
+    opacity 0.4s ease;
+  pointer-events: none;
+}
+.portal__label {
+  font-family: var(--f-pixel);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #fff;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity 0.3s 0.4s;
+}
+.portal--grow .portal__label {
+  opacity: 0.8;
+}
+
+/* ---------------- Exit tab (follows you into each world) ---------------- */
+.exit-tab {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  z-index: 900;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  font-family: var(--f-serif);
+}
+.exit-tab__handle {
+  order: 2;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  background: var(--card) var(--grain);
+  border: 1px solid rgba(46, 36, 51, 0.25);
+  border-left: 0;
+  border-radius: 8px 0 0 8px;
+  padding: 14px 6px;
+  font-family: var(--f-pixel);
+  font-size: 10px;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: -2px 2px 6px rgba(40, 25, 10, 0.25);
+}
+.exit-tab__links {
+  order: 1;
+  background: var(--ivory) var(--grain);
+  border: 1px solid rgba(46, 36, 51, 0.2);
+  border-left: 0;
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  max-width: 220px;
+  box-shadow: 4px 6px 18px rgba(40, 25, 10, 0.25);
+}
+.exit-tab__links[hidden] {
+  display: none;
+}
+.exit-tab__links a {
+  color: var(--plum);
+  font-size: 17px;
+  font-weight: 600;
+}
+.exit-tab__note {
+  margin: 0;
+  font-family: var(--f-hand);
+  font-size: 17px;
+  line-height: 1.1;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
