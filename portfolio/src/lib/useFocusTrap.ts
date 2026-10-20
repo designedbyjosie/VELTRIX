@@ -1,10 +1,12 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Keeps keyboard focus inside an open dialog, closes on Escape, and restores focus on close. */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean, onClose?: () => void) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (!active) return;
     const node = ref.current;
@@ -14,9 +16,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     (first ?? node).focus({ preventScroll: true });
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && onClose) {
+      if (e.key === "Escape" && closeRef.current) {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -37,5 +39,5 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       node.removeEventListener("keydown", onKey);
       previous?.focus?.({ preventScroll: true });
     };
-  }, [ref, active, onClose]);
+  }, [ref, active]);
 }
