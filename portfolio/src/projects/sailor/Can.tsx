@@ -119,7 +119,7 @@ export function Can({ flavour, className, title }: CanProps) {
         <rect x="0" y="10" width="120" height="280" fill={w.label} />
         {/* top band with the wordmark */}
         <rect x="0" y="16" width="120" height="34" fill={w.band} />
-        <text x="60" y="38" textAnchor="middle" fontFamily="'Bricolage Grotesque', sans-serif" fontWeight="800" fontSize="11" letterSpacing="1.5" fill={w.label}>
+        <text x="60" y="38" textAnchor="middle" fontFamily="'Bricolage Grotesque', sans-serif" fontWeight="800" fontSize="9.5" letterSpacing="0.6" fill={w.label}>
           SAILOR SPRINGS
         </text>
         {/* the sun the motif sits in */}
@@ -136,13 +136,13 @@ export function Can({ flavour, className, title }: CanProps) {
             y={170 + i * 30}
             textAnchor="middle"
             fontFamily="'DM Serif Display', serif"
-            fontSize={word.length > 7 ? 24 : 30}
+            fontSize={word.length > 8 ? 19 : word.length > 6 ? 24 : 30}
             fill={w.labelInk}
           >
             {word}
           </text>
         ))}
-        <text x="60" y="244" textAnchor="middle" fontFamily="'Bricolage Grotesque', sans-serif" fontWeight="600" fontSize="7" fill={w.labelInk} opacity=".85">
+        <text x="60" y="244" textAnchor="middle" fontFamily="'Bricolage Grotesque', sans-serif" fontWeight="600" fontSize="6" fill={w.labelInk} opacity=".85">
           SPARKLING BOTANICAL WATER
         </text>
         <rect x="38" y="252" width="44" height="12" rx="6" fill="none" stroke={w.labelInk} strokeWidth="1" />
