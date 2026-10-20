@@ -147,6 +147,17 @@ button {
   color: var(--ink-soft);
 }
 
+@media (max-width: 700px) {
+  .exit-tab {
+    top: 70%;
+  }
+  .exit-tab__handle {
+    padding: 10px 3px;
+    font-size: 8px;
+    opacity: 0.85;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
