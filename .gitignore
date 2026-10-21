@@ -13,3 +13,5 @@ apps/extension/*.zip
 .DS_Store
 tsconfig.tsbuildinfo
 next-env.d.ts
+portfolio/node_modules/playwright
+portfolio/node_modules/playwright-core
