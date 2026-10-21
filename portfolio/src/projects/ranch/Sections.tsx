@@ -1,105 +1,117 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { asset } from "../../lib/asset";
+import { Reveal, useParallax, useScrollProgress } from "../../lib/scroll";
+import { SectionHead } from "./Chapters";
 import { activities, journal, locations, stays, timeline, type LocationId } from "./data";
 import { LocationArt } from "./LocationArt";
 
-/** Adds .is-in when an element scrolls into view, for the unfolding timeline. */
-function useReveal<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    const items = root.querySelectorAll<HTMLElement>("[data-reveal]");
-    if (!("IntersectionObserver" in window)) {
-      items.forEach((i) => i.classList.add("is-in"));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("is-in");
-            io.unobserve(e.target);
-          }
-        }),
-      { threshold: 0.3 },
-    );
-    items.forEach((i) => io.observe(i));
-    return () => io.disconnect();
-  }, []);
-  return ref;
+function Timeline() {
+  const ref = useRef<HTMLOListElement>(null);
+  const p = useScrollProgress(ref, "through");
+  // the dashed trail fills in copper as the timeline passes the middle of the screen
+  const fill = Math.max(0, Math.min(1, (p - 0.18) / 0.55));
+  return (
+    <ol className="cw-timeline" ref={ref} style={{ "--fill": fill.toFixed(3) } as React.CSSProperties}>
+      {timeline.map((t, i) => (
+        <Reveal as="li" kind="slide-right" key={t.year} delay={i * 40}>
+          <span className="cw-timeline__year">{t.year}</span>
+          <div>
+            <h3>{t.title}</h3>
+            <p>{t.body}</p>
+          </div>
+        </Reveal>
+      ))}
+    </ol>
+  );
 }
 
 export function Story() {
-  const ref = useReveal<HTMLElement>();
   return (
-    <section className="cw-section cw-story" id="cw-story" ref={ref}>
+    <section className="cw-section cw-story" id="cw-story" aria-labelledby="cw-story-title">
       <div className="cw-story__intro">
-        <h2 className="cw-h">A ranch that never stopped working</h2>
-        <p className="cw-lede">
-          Copper Wells has been a homestead, a cattle ranch, a stop for train travellers and — for the last ninety years —
-          a place people come to sleep under more stars than they knew existed.
-        </p>
-        <p className="cw-typed">
-          Long before the homestead, this land was home to Indigenous peoples whose histories are theirs to tell. Our
-          archive begins in 1891 and tells only the ranch's own story.
-        </p>
+        <SectionHead
+          num="01"
+          kicker="The story so far"
+          title="A ranch that never stopped working"
+          id="cw-story-title"
+          lede="Copper Wells has been a homestead, a cattle ranch, a stop for train travellers and — for the last ninety years — a place people come to sleep under more stars than they knew existed."
+        />
+        <Reveal kind="clip" className="cw-plate" delay={120}>
+          <img src={asset("img/ranch/ranch-yard-dusk.jpg")} width={1600} height={1000} loading="lazy" decoding="async" alt="The ranch yard at dusk from above: windmill, stock tank, adobe house, barn and a lit campfire circle, rendered from the 3D scene" />
+          <span className="cw-plate__cap">Plate I · The yard at copper hour</span>
+        </Reveal>
+        <Reveal as="p" className="cw-typed" delay={200}>
+          Long before the homestead, this land was home to Indigenous peoples whose histories are theirs to tell. Our archive begins in
+          1891 and tells only the ranch's own story.
+        </Reveal>
       </div>
-      <ol className="cw-timeline">
-        {timeline.map((t, i) => (
-          <li key={t.year} data-reveal style={{ transitionDelay: `${i * 60}ms` }}>
-            <span className="cw-timeline__year">{t.year}</span>
-            <div>
-              <h3>{t.title}</h3>
-              <p>{t.body}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
+      <Timeline />
     </section>
   );
 }
 
 export function Activities({ onPlan }: { onPlan: (k?: string) => void }) {
   return (
-    <section className="cw-section cw-do" id="cw-do">
-      <h2 className="cw-h">Things to do, slowly</h2>
-      <ul className="cw-tickets">
-        {activities.map((a) => (
-          <li key={a.id} className="cw-ticket">
-            <span className="cw-ticket__time">{a.time}</span>
-            <h3>{a.name}</h3>
-            <p>{a.detail}</p>
-            <span className="cw-ticket__price">{a.price ? `$${a.price} per guest` : "Included"}</span>
-          </li>
-        ))}
-      </ul>
-      <button className="cw-btn" onClick={() => onPlan("ride")}>
-        Add activities to a visit
-      </button>
+    <section className="cw-section cw-do" id="cw-do" aria-labelledby="cw-do-title">
+      <div className="cw-do__inner">
+        <SectionHead num="02" kicker="Days on the ranch" title="Things to do, slowly" id="cw-do-title" light lede="Six ways to spend a day, none of them in a hurry. Prices are sample figures for this concept." />
+        <ul className="cw-tickets">
+          {activities.map((a, i) => (
+            <Reveal as="li" key={a.id} className="cw-ticket" delay={(i % 3) * 90}>
+              <div className="cw-ticket__main">
+                <span className="cw-ticket__time">{a.time}</span>
+                <h3>{a.name}</h3>
+                <p>{a.detail}</p>
+                <span className="cw-ticket__price">{a.price ? `$${a.price} per guest` : "Included with your stay"}</span>
+              </div>
+              <div className="cw-ticket__stub" aria-hidden="true">
+                <span>Admit one</span>
+                <span className="cw-ticket__no">No. {String(i + 1).padStart(3, "0")}</span>
+              </div>
+            </Reveal>
+          ))}
+        </ul>
+        <Reveal kind="fade">
+          <button className="cw-btn cw-btn--light" onClick={() => onPlan("ride")}>
+            Add activities to a visit <span className="cw-btn__arrow" aria-hidden="true">→</span>
+          </button>
+        </Reveal>
+      </div>
     </section>
+  );
+}
+
+function StayCard({ s, i }: { s: (typeof stays)[number]; i: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useParallax(ref);
+  return (
+    <Reveal as="article" className="cw-stay" delay={i * 110}>
+      <div className="cw-stay__art" aria-hidden="true" ref={ref}>
+        <div className="cw-stay__parallax">
+          <LocationArt id={i === 0 ? "house" : i === 1 ? "trail" : "stables"} />
+        </div>
+        <span className="cw-stay__tag">Sleeps {s.sleeps}</span>
+      </div>
+      <h3>{s.name}</h3>
+      <p>{s.detail}</p>
+      <p className="cw-stay__meta">
+        <span>From ${s.nightly}</span> a night, meals included
+      </p>
+    </Reveal>
   );
 }
 
 export function Stays({ onPlan }: { onPlan: (k?: string) => void }) {
   return (
-    <section className="cw-section cw-stays">
-      <h2 className="cw-h">Where you'll sleep</h2>
+    <section className="cw-section cw-stays" aria-labelledby="cw-stays-title">
+      <SectionHead num="03" kicker="Rooms & cabins" title="Where you'll sleep" id="cw-stays-title" lede="Three ways to stay, all within earshot of the dinner bell." />
       <div className="cw-stays__grid">
         {stays.map((s, i) => (
-          <article key={s.id} className="cw-stay">
-            <div className="cw-stay__art" aria-hidden="true">
-              <LocationArt id={i === 0 ? "house" : i === 1 ? "trail" : "stables"} />
-            </div>
-            <h3>{s.name}</h3>
-            <p>{s.detail}</p>
-            <p className="cw-stay__meta">
-              Sleeps {s.sleeps} · from ${s.nightly} a night
-            </p>
-          </article>
+          <StayCard key={s.id} s={s} i={i} />
         ))}
       </div>
       <button className="cw-btn" onClick={() => onPlan("stay")}>
-        Check sample availability
+        Check sample availability <span className="cw-btn__arrow" aria-hidden="true">→</span>
       </button>
     </section>
   );
@@ -119,12 +131,9 @@ export function PropertyMap({ onOpen }: { onOpen: (id: LocationId) => void }) {
   const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x * 10} ${y * 6}`).join(" ");
   return (
     <section className="cw-section cw-mapsec" id="cw-map">
-      <div className="cw-mapsec__head">
-        <h2 className="cw-h">The lay of the land</h2>
-        <p className="cw-lede">Tap places to plot a day's route. Open any of them for the full story.</p>
-      </div>
+      <SectionHead num="05" kicker="Property guide" title="The lay of the land" lede="Tap places to plot a day's route. Open any of them for the full story." />
       <div className="cw-mapsec__grid">
-        <div className="cw-map">
+        <Reveal kind="scale" className="cw-map">
           <svg viewBox="0 0 1000 600" role="img" aria-label="Illustrated map of the ranch with your route">
             <rect width="1000" height="600" fill="#efe2c8" />
             <path d="M0 360 C200 330 300 420 500 380 S800 300 1000 340" stroke="#5e9c97" strokeWidth="18" fill="none" opacity=".45" />
@@ -156,8 +165,8 @@ export function PropertyMap({ onOpen }: { onOpen: (id: LocationId) => void }) {
               </button>
             );
           })}
-        </div>
-        <div className="cw-route">
+        </Reveal>
+        <Reveal kind="slide-right" className="cw-route" delay={150}>
           <h3>Your route</h3>
           {route.length === 0 ? (
             <p>No stops yet. Tap places on the map.</p>
@@ -184,7 +193,7 @@ export function PropertyMap({ onOpen }: { onOpen: (id: LocationId) => void }) {
               Clear route
             </button>
           )}
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -206,9 +215,8 @@ export function PhotoBox() {
   const [view, setView] = useState<string | null>(null);
   const viewing = photos.find((p) => p.id === view);
   return (
-    <section className="cw-section cw-photos">
-      <h2 className="cw-h">A box of photographs</h2>
-      <p className="cw-lede">Illustrated stand-ins for an imagined family archive.</p>
+    <section className="cw-section cw-photos" id="cw-archive">
+      <SectionHead num="06" kicker="The family archive" title="A box of photographs" lede="Illustrated stand-ins for an imagined family archive. Tip the box out, then pick one up." />
       <div className={`cw-box ${spread ? "is-spread" : ""}`}>
         {photos.map((p, i) => (
           <button
@@ -268,15 +276,14 @@ const cards = [
 export function Postcards() {
   const [flipped, setFlipped] = useState<string[]>([]);
   return (
-    <section className="cw-section cw-cards" id="cw-archive">
-      <h2 className="cw-h">From the postcard rack</h2>
-      <p className="cw-lede">Turn them over. All messages are fictional.</p>
+    <section className="cw-section cw-cards">
+      <SectionHead num="07" kicker="General store" title="From the postcard rack" lede="Turn them over. All messages are fictional." />
       <div className="cw-cards__row">
-        {cards.map((c) => {
+        {cards.map((c, i) => {
           const on = flipped.includes(c.id);
           return (
+            <Reveal key={c.id} className="cw-card__slot" delay={i * 120} style={{ "--tilt": `${(i - 1) * 1.6}deg` } as React.CSSProperties}>
             <button
-              key={c.id}
               className={`cw-card ${on ? "is-flipped" : ""}`}
               aria-pressed={on}
               aria-label={on ? `${c.title}. Message: ${c.back}` : `${c.title}. Turn over to read`}
@@ -298,6 +305,7 @@ export function Postcards() {
                 </span>
               </span>
             </button>
+            </Reveal>
           );
         })}
       </div>
@@ -305,17 +313,22 @@ export function Postcards() {
   );
 }
 
+const seasonTone = ["#7fa36b", "#c98e3b", "#a2472a", "#6f7fb0"];
+
 export function Journal() {
   return (
-    <section className="cw-section cw-journal">
-      <h2 className="cw-h">The ranch journal</h2>
+    <section className="cw-section cw-journal" aria-labelledby="cw-journal-title">
+      <SectionHead num="08" kicker="Four seasons" title="The ranch journal" id="cw-journal-title" />
       <div className="cw-journal__grid">
-        {journal.map((j) => (
-          <article key={j.title} className="cw-entry">
-            <p className="cw-entry__date">{j.date}</p>
+        {journal.map((j, i) => (
+          <Reveal as="article" key={j.title} className="cw-entry" delay={i * 90} style={{ "--tone": seasonTone[i] } as React.CSSProperties}>
+            <p className="cw-entry__date">
+              <span className="cw-entry__glyph" aria-hidden="true" />
+              {j.date}
+            </p>
             <h3>{j.title}</h3>
             <p>{j.body}</p>
-          </article>
+          </Reveal>
         ))}
       </div>
     </section>

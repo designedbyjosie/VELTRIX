@@ -1,4 +1,5 @@
 import { href } from "../../lib/router";
+import { Reveal, SplitWords } from "../../lib/scroll";
 import { interestColours, interestLabels, type Interest } from "./data";
 import { effectiveDays, money, rankDestinations, type TripInput } from "./engine";
 import { base } from "./Margin";
@@ -9,7 +10,10 @@ export function Discover({ input, onChoose }: { input: TripInput; setInput: (i: 
   return (
     <section className="mg-discover">
       <header className="mg-discover__head">
-        <h1>Trips that fit</h1>
+        <p className="mg-eyebrow">Ranked for you · sample data</p>
+        <h1>
+          <SplitWords text="Trips that fit." />
+        </h1>
         <p className="mg-lede">
           {days} days, {input.travelers} {input.travelers === 1 ? "person" : "people"}, {money(input.budget)}
           {input.budgetIncludesTravel ? " including travel" : " plus travel"}. Ranked by how well each place matches what you enjoy, the season,
@@ -21,7 +25,12 @@ export function Discover({ input, onChoose }: { input: TripInput; setInput: (i: 
       ) : (
         <ol className="mg-options">
           {ranked.map((r, i) => (
-            <li key={r.dest.id} className={`mg-option ${i === 0 ? "is-best" : ""} ${r.fits ? "" : "is-over"}`}>
+            <Reveal as="li" key={r.dest.id} delay={Math.min(i, 4) * 90} className={`mg-option ${i === 0 ? "is-best" : ""} ${r.fits ? "" : "is-over"}`}>
+              {i === 0 && (
+                <span className="mg-option__stamp" aria-hidden="true">
+                  Best fit
+                </span>
+              )}
               <div className="mg-option__band" style={{ background: `linear-gradient(90deg, ${r.dest.palette[0]}, ${r.dest.palette[1]})` }} aria-hidden="true" />
               <div className="mg-option__body">
                 <p className="mg-option__rank">{i === 0 ? "Best fit" : `Option ${i + 1}`}</p>
@@ -58,7 +67,7 @@ export function Discover({ input, onChoose }: { input: TripInput; setInput: (i: 
                   Build this trip
                 </button>
               </div>
-            </li>
+            </Reveal>
           ))}
         </ol>
       )}

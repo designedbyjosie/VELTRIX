@@ -3,14 +3,18 @@ import "@fontsource/anton/400.css";
 import "@fontsource/manrope/400.css";
 import "@fontsource/manrope/600.css";
 import "@fontsource/manrope/800.css";
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
 import { usePersistentState } from "../../lib/storage";
 import { prefersReducedMotion } from "../../lib/motion";
-import { MOODS, luminance, topMoods, type Analysis, type MoodWeights } from "./analyze";
+import { luminance, topMoods, type Analysis, type MoodWeights } from "./analyze";
+import { emptyMoods, energyFromAnalysis, moodsFromAnalysis } from "./seed";
 import { catalog } from "./catalog";
 import { defaultDirection, playlistName, recommend, type Direction } from "./recommend";
 import { stopSketch } from "./sketch";
 import { GrainDefs } from "./Cover";
-import { Welcome, PhotoStep, MoodStep, DirectionStep, Developing, PlaylistStep, PostStep, Library } from "./screens";
+import { Welcome } from "./Landing";
+import { PhotoStep, MoodStep, DirectionStep, Developing, PlaylistStep, PostStep, Library } from "./screens";
 import "./lightleak.css";
 
 export type Step = "welcome" | "photo" | "mood" | "direction" | "developing" | "playlist" | "post" | "library";
@@ -43,9 +47,7 @@ export const stepOrder: { id: Step; label: string }[] = [
   { id: "post", label: "Post" },
 ];
 
-export function emptyMoods(): MoodWeights {
-  return Object.fromEntries(MOODS.map((m) => [m, 0])) as MoodWeights;
-}
+export { emptyMoods };
 
 /** Downscales the photo for local saving so a playlist doesn't fill storage. */
 export async function thumbnail(src: string, max = 260): Promise<string> {
@@ -77,6 +79,7 @@ export default function Lightleak({ path }: { path: string[] }) {
   useEffect(() => {
     stopSketch();
     document.querySelector(".ll-app")?.scrollTo({ top: 0 });
+    window.scrollTo(0, 0);
   }, [step]);
 
   const palette = useMemo(() => (reopened ? reopened.palette : analysis?.palette.map((p) => p.hex) ?? []), [analysis, reopened]);
@@ -109,12 +112,9 @@ export default function Lightleak({ path }: { path: string[] }) {
     setPicks([]);
     setChosen(null);
     if (a) {
-      const top = topMoods(a.moods, 3);
-      const m = emptyMoods();
-      top.forEach((k, i) => (m[k] = Math.max(0.35, a.moods[k]) * (i === 0 ? 1 : 0.85)));
-      setMoods(m);
-      const energyGuess = Math.round(30 + a.saturation * 60 + a.contrast * 25 - (1 - a.brightness) * 20);
-      setDirection((d) => ({ ...d, energy: Math.max(10, Math.min(90, energyGuess)) }));
+      setMoods(moodsFromAnalysis(a));
+      const energy = energyFromAnalysis(a);
+      setDirection((d) => ({ ...d, energy }));
     } else setMoods(emptyMoods());
   }, []);
 
@@ -162,7 +162,17 @@ export default function Lightleak({ path }: { path: string[] }) {
   let screen: React.ReactNode;
   switch (step) {
     case "welcome":
-      screen = <Welcome onStart={() => setStep("photo")} savedCount={saved.length} onLibrary={() => setStep("library")} />;
+      screen = (
+        <Welcome
+          onStart={() => setStep("photo")}
+          savedCount={saved.length}
+          onLibrary={() => setStep("library")}
+          onDemo={(p, a) => {
+            choosePhoto(p, a);
+            setStep("mood");
+          }}
+        />
+      );
       break;
     case "photo":
       screen = <PhotoStep photo={photo} onChange={choosePhoto} onNext={() => setStep("mood")} />;
@@ -233,12 +243,22 @@ export default function Lightleak({ path }: { path: string[] }) {
   const current = stepOrder.findIndex((s) => s.id === (step === "developing" ? "playlist" : step));
   const mood = topMoods(moods, 1)[0];
 
+  if (step === "welcome")
+    return (
+      <div className="ll ll--welcome" style={style}>
+        <GrainDefs />
+        {screen}
+      </div>
+    );
+
   return (
     <div className={`ll ll--${step} ll-mood--${mood}`} style={style}>
       <GrainDefs />
       <aside className="ll-rail">
         <p className="ll-rail__brand">
-          Lightleak<sup>concept</sup>
+          <button onClick={() => setStep("welcome")} aria-label="Lightleak concept — back to the start">
+            Lightleak<sup>concept</sup>
+          </button>
         </p>
         <p className="ll-rail__q">What does this picture sound like?</p>
         <ol className="ll-strip" aria-label="Steps">

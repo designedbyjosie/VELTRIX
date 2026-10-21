@@ -33,62 +33,6 @@ const moodBlurbs: Record<Mood, string> = {
 };
 
 /* ------------------------------------------------------------------ */
-/* 1. Welcome                                                          */
-/* ------------------------------------------------------------------ */
-export function Welcome({ onStart, savedCount, onLibrary }: { onStart: () => void; savedCount: number; onLibrary: () => void }) {
-  const [i, setI] = useState(0);
-  const [srcs, setSrcs] = useState<string[]>([]);
-  useEffect(() => {
-    setSrcs(demoPhotos.map((p) => renderDemoPhoto(p, 400, 500)));
-    const t = setInterval(() => setI((n) => (n + 1) % demoPhotos.length), 3200);
-    return () => clearInterval(t);
-  }, []);
-  const demoLines = [
-    ["Golden", "Dreams — Fleetwood Mac", ["#f0a77a", "#ffd9a0", "#6f86b3", "#3c4f72"]],
-    ["After dark", "Teardrop — Massive Attack", ["#ff468c", "#28dcd2", "#1a2140", "#0d1426"]],
-    ["No plans", "Here Comes the Sun — The Beatles", ["#7ec3ec", "#9cc95a", "#e9474c", "#fff36b"]],
-    ["Quiet morning", "Clair de Lune — Debussy", ["#e9dfe6", "#fff6e8", "#b7a4c6", "#d9cbe0"]],
-  ] as const;
-  return (
-    <section className="ll-screen ll-welcome">
-      <h1 className="ll-welcome__title">
-        What does this picture <em>sound</em> like?
-      </h1>
-      <div className="ll-welcome__demo" aria-hidden="true">
-        {srcs.map((s, n) => (
-          <figure key={n} className={`ll-welcome__frame ${n === i ? "is-on" : ""}`}>
-            <img src={s} alt="" />
-            <figcaption>
-              <span className="ll-welcome__bars">
-                {demoLines[n][2].map((c) => (
-                  <i key={c} style={{ background: c }} />
-                ))}
-              </span>
-              <span className="ll-welcome__mood">{demoLines[n][0]}</span>
-              <span className="ll-welcome__song">{demoLines[n][1]}</span>
-            </figcaption>
-          </figure>
-        ))}
-      </div>
-      <p className="ll-lede">
-        Add a photo you want to post. Lightleak reads its colour and light, suggests a mood you can change, and builds a
-        short playlist to go with it.
-      </p>
-      <div className="ll-actions">
-        <button className="ll-btn" onClick={onStart}>
-          Add a photo
-        </button>
-        {savedCount > 0 && (
-          <button className="ll-btn ll-btn--ghost" onClick={onLibrary}>
-            Saved playlists ({savedCount})
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* 2. Add a photo                                                      */
 /* ------------------------------------------------------------------ */
 export function PhotoStep({ photo, onChange, onNext }: { photo: Photo | null; onChange: (p: Photo | null, a: Analysis | null) => void; onNext: () => void }) {

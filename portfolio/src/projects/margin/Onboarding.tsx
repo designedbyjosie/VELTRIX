@@ -45,12 +45,15 @@ export function Onboarding({ input, setInput, onDone }: Props) {
             </li>
           ))}
         </ol>
-        <h1 id="mg-q-title" className="mg-q__title">
+        <p className="mg-q__note" aria-hidden="true" key={`n${step}`}>
+          {["start with the outline", "everything, travel included", "pick freely — it only leans", "skip anything, really"][step]}
+        </p>
+        <h1 id="mg-q-title" className="mg-q__title" key={`t${step}`}>
           {["Where from, and for how long?", "What can you spend?", "What makes a trip good for you?", "What does your life allow?"][step]}
         </h1>
 
         {step === 0 && (
-          <div className="mg-fields">
+          <div className="mg-fields" key="f0">
             <label className="mg-field">
               <span>Starting from</span>
               <select value={input.origin} onChange={(e) => set({ origin: e.target.value as Origin })}>
@@ -113,7 +116,7 @@ export function Onboarding({ input, setInput, onDone }: Props) {
         )}
 
         {step === 1 && (
-          <div className="mg-fields">
+          <div className="mg-fields" key="f1">
             <label className="mg-field mg-field--money">
               <span>Total budget for everyone (USD)</span>
               <input type="number" inputMode="numeric" min={50} step={50} value={input.budget || ""} onChange={(e) => set({ budget: Math.max(0, +e.target.value) })} />
@@ -156,7 +159,7 @@ export function Onboarding({ input, setInput, onDone }: Props) {
         )}
 
         {step === 2 && (
-          <div className="mg-fields">
+          <div className="mg-fields" key="f2">
             <p className="mg-hint">Pick as many as you like. The plan leans toward what you choose.</p>
             <div className="mg-interests" role="group" aria-label="Interests">
               {(Object.keys(interestLabels) as Interest[]).map((k) => {
@@ -178,7 +181,7 @@ export function Onboarding({ input, setInput, onDone }: Props) {
         )}
 
         {step === 3 && (
-          <div className="mg-fields">
+          <div className="mg-fields" key="f3">
             <p className="mg-hint">All optional. Skip anything that doesn't matter to you — you can change it later from the trip.</p>
             <div className="mg-row">
               <label className="mg-field">
@@ -369,7 +372,8 @@ function Ticket({ input }: { input: TripInput }) {
         ))}
       </ul>
       <span className="mg-ticket__stub" aria-hidden="true">
-        ADMIT {input.travelers}
+        <span>Admit {input.travelers}</span>
+        <span>Margin · draft</span>
       </span>
     </aside>
   );

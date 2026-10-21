@@ -4,6 +4,8 @@ import { prefersReducedMotion, wait } from "../lib/motion";
 import { owner } from "../content/owner";
 import { Archive } from "./Archive";
 import { FolderCover } from "./FolderCover";
+import { ProjectCover } from "./ProjectCover";
+import { projects } from "../content/projects";
 import "./folder.css";
 
 type Phase = "closed" | "opening" | "open" | "closing";
@@ -37,7 +39,7 @@ export function FolderStage({ openOnLoad }: { openOnLoad: boolean }) {
         return;
       }
       setPhase("opening");
-      await wait(1250);
+      await wait(1500);
       setSheetRect(sheetRef.current?.getBoundingClientRect() ?? null);
       setPhase("open");
       navigate("/archive");
@@ -75,6 +77,7 @@ export function FolderStage({ openOnLoad }: { openOnLoad: boolean }) {
       <a className="pf-skip" href="#/archive" onClick={(e) => (e.preventDefault(), open(true))}>
         Skip the intro and go straight to the work
       </a>
+      <div className="pf-stage__light" aria-hidden="true" />
       <header className="pf-stage__top">
         <span className="pf-stage__who">{owner.name}</span>
         <span className="pf-stage__what">{owner.role}</span>
@@ -86,26 +89,26 @@ export function FolderStage({ openOnLoad }: { openOnLoad: boolean }) {
           className={`folder folder--${phase}`}
           style={{ "--tx": tilt.x, "--ty": tilt.y } as React.CSSProperties}
         >
+          <span className="folder__shadow" aria-hidden="true" />
           {/* back board + tab */}
           <div className="folder__back" aria-hidden="true">
-            <div className="folder__tab" />
+            <div className="folder__tab">No. 01</div>
           </div>
-          {/* the papers inside, which flutter as the cover lifts */}
+          {/* the papers inside, which lift as the cover opens */}
           <div className="folder__inside" aria-hidden="true">
             <div className="inside-sheet inside-sheet--3" />
             <div className="inside-sheet inside-sheet--2" />
             <div className="inside-sheet inside-sheet--1" ref={sheetRef}>
-              <span className="inside-sheet__script">four worlds</span>
-              <span className="inside-sheet__pixel">archive</span>
-              <div className="inside-thumbs">
-                <i style={{ background: "#173f73" }} />
-                <i style={{ background: "#1d1b20" }} />
-                <i style={{ background: "#a2472a" }} />
-                <i style={{ background: "#e8a33d" }} />
-              </div>
+              <span className="inside-sheet__title">
+                Four <em>worlds</em>
+              </span>
+              <span className="inside-sheet__thumbs">
+                {projects.map((p) => (
+                  <ProjectCover key={p.id} id={p.id} decorative />
+                ))}
+              </span>
             </div>
-            <div className="inside-clip" />
-            <div className="inside-ticket">admit one</div>
+            <div className="inside-pocket" />
           </div>
           {/* the cover, hinged on its left edge */}
           <button
@@ -116,17 +119,19 @@ export function FolderStage({ openOnLoad }: { openOnLoad: boolean }) {
           >
             <span className="folder__cover-front">
               <FolderCover />
+              {/* the elastic closure, which slips off first */}
+              <span className="folder__band" aria-hidden="true" />
             </span>
             <span className="folder__cover-inner" aria-hidden="true">
               <span className="cover-inner__note">
-                if found, please return to the internet
+                If found, please return to the internet.
                 <br />— {owner.signature}
               </span>
             </span>
           </button>
         </div>
         <p className="pf-stage__hint" aria-hidden="true">
-          {phase === "closed" ? "tap the folder to open it" : " "}
+          {phase === "closed" ? "Click the folder to open it" : "\u00a0"}
         </p>
       </div>
     </main>

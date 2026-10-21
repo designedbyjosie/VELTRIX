@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { destinationById, interestColours, interestLabels, type Activity, type Destination, type Interest } from "./data";
-import { money, recomputeTimes, regenerateDay, retotal, transportNote, type BudgetLine, type Change, type DayPlan, type Item, type Pace, type Plan, type TripInput } from "./engine";
+import { diffPlans, money, recomputeTimes, regenerateDay, retotal, transportNote, type BudgetLine, type Change, type DayPlan, type Item, type Pace, type Plan, type TripInput } from "./engine";
 import { prepTasks, type SavedTrip } from "./Margin";
+import { SplitWords } from "../../lib/scroll";
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const basisLabel = { estimate: "Estimate", yours: "Your figure", confirmed: "Confirmed" } as const;
@@ -50,9 +51,20 @@ export function TripView(props: Props) {
           <p className="mg-cover__kicker">
             {months[input.month]} · {plan.effectiveDays} days · {input.travelers} {input.travelers === 1 ? "traveller" : "travellers"} · {input.pace} pace
           </p>
-          <h1>{dest.name}</h1>
+          <h1>
+            <SplitWords key={dest.id} text={dest.name} stagger={80} />
+          </h1>
           <p className="mg-cover__blurb">{dest.blurb}</p>
         </div>
+        <svg className="mg-cover__map" viewBox="0 0 100 100" aria-hidden="true" preserveAspectRatio="none">
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <path key={i} d={`M-5 ${18 + i * 12} C 20 ${10 + i * 13}, 45 ${30 + i * 11}, 70 ${16 + i * 12} S 100 ${12 + i * 12}, 110 ${22 + i * 11}`} />
+          ))}
+        </svg>
+        <span className="mg-postmark" aria-hidden="true">
+          <b>{months[input.month].slice(0, 3)}</b>
+          <small>{dest.country}</small>
+        </span>
         <div className="mg-cover__side">
           <span className="mg-stamp">Estimated plan · not booked</span>
           <div className="mg-cover__save">
@@ -77,7 +89,9 @@ export function TripView(props: Props) {
       {changes.length > 0 && (
         <section className="mg-changes" aria-live="polite" aria-label="What changed">
           <div className="mg-changes__head">
-            <h2>What changed</h2>
+            <h2>
+              What changed <span className="mg-changes__hand" aria-hidden="true">— written in the margin</span>
+            </h2>
             <button className="mg-textbtn" onClick={props.onDismissChanges}>
               Dismiss
             </button>
@@ -267,6 +281,7 @@ function DayView({ dest, plan, input, day, edit }: { dest: Destination; plan: Pl
   const [replacing, setReplacing] = useState<string | null>(null);
   const [noting, setNoting] = useState<string | null>(null);
   const [announce, setAnnounce] = useState("");
+  const [dayDiff, setDayDiff] = useState<Change[]>([]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const zone = dest.zones.find((z) => z.id === day.zone);
   const activities = day.items.filter((i) => i.kind === "activity");
@@ -283,6 +298,7 @@ function DayView({ dest, plan, input, day, edit }: { dest: Destination; plan: Pl
       prev = i.zone;
     });
     edit(retotal({ ...plan, days: plan.days.map((x) => (x.index === day.index ? d : x)) }, nextInput ?? input), nextInput);
+    setDayDiff([]);
     if (message) setAnnounce(message);
   };
 
@@ -348,10 +364,21 @@ function DayView({ dest, plan, input, day, edit }: { dest: Destination; plan: Pl
     edit(plan, { ...input, notes: { ...input.notes, [key]: text } });
   };
 
+  /** Rebuild this day and keep a note of exactly what moved. */
+  const rebuild = (next: Plan, nextInput: TripInput | undefined, message: string) => {
+    const prefix = `Day ${day.index + 1}:`;
+    const moved = diffPlans(plan, next, input, nextInput ?? input).filter((c) => c.text.startsWith(prefix) || c.text.includes(`day ${day.index + 1}`));
+    edit(next, nextInput);
+    setDayDiff(moved.length ? moved.map((c) => {
+            const t = c.text.replace(prefix, "").trim();
+            return { ...c, text: t[0].toUpperCase() + t.slice(1) };
+          }) : [{ tone: "neutral", text: "Same picks — nothing else fits this day right now." }]);
+    setAnnounce(message);
+  };
+
   const setPace = (p: Pace) => {
     const nextInput = { ...input, dayPace: { ...input.dayPace, [day.index]: p } };
-    edit(regenerateDay(plan, nextInput, day.index, p), nextInput);
-    setAnnounce(`Day ${day.index + 1} rebuilt at a ${p} pace`);
+    rebuild(regenerateDay(plan, nextInput, day.index, p), nextInput, `Day ${day.index + 1} rebuilt at a ${p} pace`);
   };
 
   return (
@@ -377,10 +404,7 @@ function DayView({ dest, plan, input, day, edit }: { dest: Destination; plan: Pl
           </label>
           <button
             className="mg-btn mg-btn--quiet"
-            onClick={() => {
-              edit(regenerateDay(plan, input, day.index));
-              setAnnounce(`Day ${day.index + 1} regenerated with different picks`);
-            }}
+            onClick={() => rebuild(regenerateDay(plan, input, day.index), undefined, `Day ${day.index + 1} regenerated with different picks`)}
           >
             Regenerate this day
           </button>
@@ -389,6 +413,23 @@ function DayView({ dest, plan, input, day, edit }: { dest: Destination; plan: Pl
       <p className="sr-only" role="status">
         {announce}
       </p>
+      {dayDiff.length > 0 && (
+        <aside className="mg-daydiff" aria-label={`What changed on day ${day.index + 1}`}>
+          <p className="mg-daydiff__hand" aria-hidden="true">
+            rewritten:
+          </p>
+          <ul>
+            {dayDiff.map((c, i) => (
+              <li key={i} className={`mg-change mg-change--${c.tone}`}>
+                {c.text}
+              </li>
+            ))}
+          </ul>
+          <button className="mg-textbtn mg-textbtn--small" onClick={() => setDayDiff([])}>
+            Dismiss note
+          </button>
+        </aside>
+      )}
 
       <div className="mg-day__grid">
         <ol className="mg-timeline">
@@ -518,17 +559,20 @@ function RouteMap({ dest, day }: { dest: Destination; day: DayPlan }) {
   return (
     <figure className="mg-map">
       <svg viewBox="0 0 100 100" role="img" aria-label={`Route for day ${day.index + 1}: ${stops.map((s) => s.title).join(", then ") || "no stops"}`}>
-        <rect width="100" height="100" fill="#eef1ec" />
+        <rect width="100" height="100" fill="#f8f3e8" />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <path key={i} d={`M0 ${14 + i * 14} C 30 ${8 + i * 14}, 60 ${22 + i * 14}, 100 ${12 + i * 14}`} fill="none" stroke="#e6dfcd" strokeWidth="0.4" />
+        ))}
         <path d="M0 74 C20 66 30 82 52 76 S82 60 100 66 V100 H0Z" fill="#cfe3e8" />
         {dest.zones.map((z) => (
           <g key={z.id}>
-            <circle cx={z.x} cy={z.y} r="7" fill="#fff" stroke="#d6dccf" />
+            <circle cx={z.x} cy={z.y} r="6" fill="#fffdf8" stroke="#d9cfb9" strokeDasharray="1.5 1" />
             <text x={Math.min(88, Math.max(12, z.x))} y={z.y + 12} textAnchor="middle" fontSize="3.6" fill="#56607a">
               {z.name}
             </text>
           </g>
         ))}
-        {pts.length > 1 && <polyline points={pts.map((p, i) => `${p.x + i * 1.2},${p.y + i * 1.2}`).join(" ")} fill="none" stroke="var(--d1)" strokeWidth="1.4" strokeDasharray="3 2" />}
+        {pts.length > 1 && <polyline points={pts.map((p, i) => `${p.x + i * 1.2},${p.y + i * 1.2}`).join(" ")} fill="none" stroke="#c4483f" strokeWidth="1.1" strokeDasharray="2.4 1.8" strokeLinecap="round" />}
         {pts.map((p, i) => (
           <g key={i}>
             <circle cx={p.x + i * 1.2} cy={p.y + i * 1.2} r="3.6" fill="#1f2a44" />

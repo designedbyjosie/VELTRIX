@@ -3,7 +3,7 @@ import { href } from "../lib/router";
 import { owner } from "../content/owner";
 import { projects, projectById, type ProjectId } from "../content/projects";
 import { usePortal } from "../shell/Portal";
-import { SailorArtifact, LightleakArtifact, RanchArtifact, MarginArtifact } from "../shell/Artifacts";
+import { ProjectCover } from "../shell/ProjectCover";
 import { playSketch, stopSketch } from "../projects/lightleak/sketch";
 import type { Track } from "../projects/lightleak/catalog";
 import { deskPlaylist, evolutions, experiments, moodItems, notes, photoStudies, process, sketches, type MoodItem, type ObjectId } from "./content";
@@ -126,10 +126,7 @@ function Laptop({ onConnect }: { onConnect: (p: ProjectId) => void }) {
               <span className="desk-compare__tag">Final</span>
               <p>{evolutions[tab].final}</p>
               <div className="desk-compare__art" aria-hidden="true">
-                {tab === "sailor" && <SailorArtifact />}
-                {tab === "lightleak" && <LightleakArtifact />}
-                {tab === "ranch" && <RanchArtifact />}
-                {tab === "margin" && <MarginArtifact />}
+                <ProjectCover id={tab} decorative key={tab} />
               </div>
             </div>
           </div>
@@ -315,7 +312,7 @@ function Pinboard({ onConnect }: { onConnect: (p: ProjectId) => void }) {
   const [sel, setSel] = useState<ProjectId>("sailor");
   const launch = usePortal();
   const p = projectById(sel)!;
-  const arts: Record<ProjectId, React.ReactNode> = { sailor: <SailorArtifact />, lightleak: <LightleakArtifact />, ranch: <RanchArtifact />, margin: <MarginArtifact /> };
+  const arts: Record<ProjectId, React.ReactNode> = { sailor: <ProjectCover id="sailor" decorative />, lightleak: <ProjectCover id="lightleak" decorative />, ranch: <ProjectCover id="ranch" decorative />, margin: <ProjectCover id="margin" decorative />,};
   return (
     <div className="desk-board">
       <h2 id="desk-view-title">Four worlds, one person</h2>

@@ -19,7 +19,7 @@ const titles: Record<string, string> = {
   margin: "Margin — trips that fit your life",
 };
 
-function Loading({ tone = "#efe6d6" }: { tone?: string }) {
+function Loading({ tone = "#fbf7f2" }: { tone?: string }) {
   return (
     <div className="route-loading" style={{ background: tone }} role="status">
       <span>Unfolding…</span>
@@ -62,7 +62,7 @@ export function App() {
     );
   } else if (section === "desk") {
     view = (
-      <Suspense fallback={<Loading tone="#d9c6a6" />}>
+      <Suspense fallback={<Loading tone="#2a2326" />}>
         <Desk />
       </Suspense>
     );

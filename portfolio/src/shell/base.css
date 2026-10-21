@@ -13,10 +13,10 @@ html {
 }
 body {
   margin: 0;
-  background: #efe6d6;
-  color: #2e2433;
+  background: #fbf7f2;
+  color: #241d1f;
   min-height: 100vh;
-  font-family: "Cormorant Garamond", Georgia, serif;
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 img,
@@ -36,25 +36,38 @@ button {
   white-space: nowrap;
 }
 :focus-visible {
-  outline: 2px solid #7c4f9e;
+  outline: 2px solid #b4566c;
   outline-offset: 3px;
 }
 
 :root {
-  --ivory: #f7f1e5;
-  --paper: #efe6d6;
-  --card: #d8bf95;
-  --card-deep: #c4a676;
-  --lavender: #b9a6cf;
-  --lavender-soft: #ddd1ea;
-  --plum: #5b3a5e;
-  --blush: #ecc9c7;
-  --ink: #2e2433;
-  --ink-soft: #5f5463;
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .22 0 0 0 0 .15 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* The portfolio's own identity: warm whites, soft neutrals, dusty rose and
+     a deep rosewood. Concepts keep their own palettes. */
+  --ivory: #fbf7f2;
+  --paper: #f4ede6;
+  --linen: #eadfd4;
+  --blush: #f3d9d6;
+  --rose-soft: #e8bcc0;
+  --rose-dust: #d8a1a8;
+  --rose: #c7798a;
+  --rosewood: #8e3b4d;
+  --rosewood-deep: #5e2433;
+  --ink: #241d1f;
+  --ink-soft: #6a5c5f;
+  --line: rgba(36, 29, 31, 0.12);
+  --foil: linear-gradient(115deg, #b98266 0%, #f3d1c0 22%, #c58c74 40%, #fbe4d8 55%, #a96a55 75%, #e9bfae 100%);
+  /* legacy names, remapped so older styles inherit the new palette */
+  --card: var(--linen);
+  --card-deep: #d9c8bb;
+  --lavender: var(--rose-dust);
+  --lavender-soft: var(--blush);
+  --plum: var(--rosewood);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .22 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --f-display: "Instrument Serif", "Times New Roman", serif;
+  --f-ui: "Hanken Grotesk", system-ui, sans-serif;
   --f-script: "Pinyon Script", "Snell Roundhand", cursive;
   --f-pixel: "Silkscreen", "Courier New", monospace;
-  --f-serif: "Cormorant Garamond", Georgia, serif;
+  --f-serif: "Instrument Serif", Georgia, serif;
   --f-hand: "Caveat", "Comic Sans MS", cursive;
   --ease-paper: cubic-bezier(0.22, 0.8, 0.2, 1);
   --ease-hinge: cubic-bezier(0.65, 0, 0.25, 1);
@@ -64,8 +77,9 @@ button {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  font-family: var(--f-pixel);
-  font-size: 12px;
+  font: 500 12px var(--f-ui);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: #8a7f86;
 }
 
@@ -82,9 +96,7 @@ button {
   pointer-events: none;
 }
 .portal__label {
-  font-family: var(--f-pixel);
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  font: italic 400 clamp(28px, 4vw, 56px) var(--f-display);
   color: #fff;
   mix-blend-mode: difference;
   opacity: 0;
@@ -103,47 +115,55 @@ button {
   transform: translateY(-50%);
   display: flex;
   align-items: center;
-  font-family: var(--f-serif);
+  font-family: var(--f-ui);
 }
 .exit-tab__handle {
   order: 2;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  background: var(--card) var(--grain);
-  border: 1px solid rgba(46, 36, 51, 0.25);
-  border-left: 0;
-  border-radius: 8px 0 0 8px;
-  padding: 14px 6px;
-  font-family: var(--f-pixel);
-  font-size: 10px;
-  color: var(--ink);
+  background: linear-gradient(90deg, #c98b97, var(--rose-dust));
+  border: 0;
+  border-radius: 10px 0 0 10px;
+  padding: 16px 7px;
+  font: 600 10px var(--f-ui);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #fff;
   cursor: pointer;
-  box-shadow: -2px 2px 6px rgba(40, 25, 10, 0.25);
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.35),
+    -3px 4px 14px rgba(94, 36, 51, 0.28);
+  transition: padding var(--t-fast) var(--ease-out);
+}
+.exit-tab__handle:hover {
+  padding-right: 10px;
 }
 .exit-tab__links {
   order: 1;
-  background: var(--ivory) var(--grain);
-  border: 1px solid rgba(46, 36, 51, 0.2);
-  border-left: 0;
-  padding: 14px 16px;
+  background: var(--ivory);
+  border-radius: 0 14px 14px 0;
+  padding: 18px 20px;
   display: grid;
-  gap: 8px;
-  max-width: 220px;
-  box-shadow: 4px 6px 18px rgba(40, 25, 10, 0.25);
+  gap: 10px;
+  max-width: 240px;
+  box-shadow: 8px 16px 40px rgba(60, 25, 35, 0.22);
 }
 .exit-tab__links[hidden] {
   display: none;
 }
 .exit-tab__links a {
-  color: var(--plum);
-  font-size: 17px;
+  color: var(--rosewood);
+  font-size: 15px;
   font-weight: 600;
+  text-decoration: none;
+}
+.exit-tab__links a:hover {
+  text-decoration: underline;
 }
 .exit-tab__note {
   margin: 0;
-  font-family: var(--f-hand);
-  font-size: 17px;
-  line-height: 1.1;
+  font-size: 13px;
+  line-height: 1.35;
   color: var(--ink-soft);
 }
 
@@ -152,9 +172,9 @@ button {
     top: 70%;
   }
   .exit-tab__handle {
-    padding: 10px 3px;
+    padding: 12px 4px;
     font-size: 8px;
-    opacity: 0.85;
+    opacity: 0.9;
   }
 }
 

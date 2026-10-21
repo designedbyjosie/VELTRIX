@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { href } from "../../lib/router";
+import { Reveal, SplitWords } from "../../lib/scroll";
 import { destinationById } from "./data";
 import { money, packingList } from "./engine";
 import { base, prepTasks, type SavedTrip } from "./Margin";
@@ -26,7 +27,12 @@ export function Trips({
   if (!trips.length)
     return (
       <section className="mg-trips mg-trips--empty">
-        <h1>Your trips</h1>
+        <p className="mg-trips__hand" aria-hidden="true">
+          this page is waiting
+        </p>
+        <h1>
+          <SplitWords text="Your trips" />
+        </h1>
         <p className="mg-lede">Nothing saved yet. Build a trip, then press “Save trip” — it stays in this browser.</p>
         <a className="mg-btn" href={href(`${base}/plan`)}>
           Plan a trip
@@ -36,10 +42,15 @@ export function Trips({
 
   return (
     <section className="mg-trips">
-      <h1>Your trips</h1>
+      <p className="mg-eyebrow">
+        {trips.length} {trips.length === 1 ? "page" : "pages"} in this browser
+      </p>
+      <h1>
+        <SplitWords text="Your trips" />
+      </h1>
       <p className="mg-fine">Saved in this browser. Every figure is an estimate unless you marked it confirmed.</p>
       <ul className="mg-tripgrid">
-        {trips.map((t) => {
+        {trips.map((t, idx) => {
           const dest = destinationById(t.plan.destinationId)!;
           const pack = packingList(t.input, t.plan);
           const keys = [...prepTasks.map((p) => `prep:${p}`), ...pack.map((p) => `pack:${p}`)];
@@ -48,7 +59,7 @@ export function Trips({
           const acts = t.plan.days.flatMap((d) => d.items).filter((i) => i.kind === "activity");
           const confirmed = t.plan.lines.filter((l) => l.basis === "confirmed").length;
           return (
-            <li key={t.id} className="mg-tripcard" style={{ "--d1": dest.palette[0], "--d2": dest.palette[1] } as React.CSSProperties}>
+            <Reveal as="li" key={t.id} delay={Math.min(idx, 5) * 80} className="mg-tripcard" style={{ "--d1": dest.palette[0], "--d2": dest.palette[1] } as React.CSSProperties}>
               <div className="mg-tripcard__band" aria-hidden="true" />
               {renaming === t.id ? (
                 <input
@@ -137,7 +148,7 @@ export function Trips({
                   </button>
                 )}
               </div>
-            </li>
+            </Reveal>
           );
         })}
       </ul>

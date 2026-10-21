@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { locations, type LocationId } from "./data";
-import { RanchScene, type TimeOfDay } from "./scene3d";
+import type { RanchScene, TimeOfDay } from "./scene3d";
 
 interface Props {
   time: TimeOfDay;
@@ -22,30 +22,53 @@ export function Scene3D({ time, arrived, onArrive, onOpen, rideRequest, skipRequ
   const onArriveRef = useRef(onArrive);
   onArriveRef.current = onArrive;
 
+  const timeRef = useRef(time);
+  timeRef.current = time;
+  const arrivedRef = useRef(arrived);
+  arrivedRef.current = arrived;
+  const pending = useRef({ ride: 0, skip: 0 });
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
     const canvas = canvasRef.current!;
-    let scene: RanchScene;
-    try {
-      scene = new RanchScene(canvas, { time, arrived });
-    } catch {
-      onFail();
-      return;
-    }
-    sceneRef.current = scene;
-    markers.current.forEach((el, id) => scene.registerMarker(id, el));
-    const onResize = () => scene.resize();
-    window.addEventListener("resize", onResize);
-    const onVis = () => scene.setRunning(!document.hidden);
-    document.addEventListener("visibilitychange", onVis);
-    const io = new IntersectionObserver(([e]) => scene.setRunning(e.isIntersecting && !document.hidden));
-    io.observe(canvas);
-    canvas.addEventListener("webglcontextlost", onFail);
+    let scene: RanchScene | null = null;
+    let cancelled = false;
+    const cleanups: (() => void)[] = [];
+    // three.js is only fetched when the 3D view is actually shown
+    import("./scene3d")
+      .then(({ RanchScene }) => {
+        if (cancelled) return;
+        try {
+          scene = new RanchScene(canvas, { time: timeRef.current, arrived: arrivedRef.current });
+        } catch {
+          onFail();
+          return;
+        }
+        const s = scene;
+        sceneRef.current = s;
+        markers.current.forEach((el, id) => s.registerMarker(id, el));
+        const onResize = () => s.resize();
+        window.addEventListener("resize", onResize);
+        const onVis = () => s.setRunning(!document.hidden);
+        document.addEventListener("visibilitychange", onVis);
+        const io = new IntersectionObserver(([e]) => s.setRunning(e.isIntersecting && !document.hidden));
+        io.observe(canvas);
+        canvas.addEventListener("webglcontextlost", onFail);
+        cleanups.push(() => {
+          window.removeEventListener("resize", onResize);
+          document.removeEventListener("visibilitychange", onVis);
+          io.disconnect();
+          canvas.removeEventListener("webglcontextlost", onFail);
+        });
+        // a ride requested while three.js was still loading
+        if (pending.current.ride) s.rideIn(() => onArriveRef.current());
+        setReady(true);
+      })
+      .catch(() => !cancelled && onFail());
     return () => {
-      window.removeEventListener("resize", onResize);
-      document.removeEventListener("visibilitychange", onVis);
-      io.disconnect();
-      canvas.removeEventListener("webglcontextlost", onFail);
-      scene.dispose();
+      cancelled = true;
+      cleanups.forEach((f) => f());
+      scene?.dispose();
       sceneRef.current = null;
     };
     // the scene is built once; later changes go through the methods below
@@ -54,10 +77,14 @@ export function Scene3D({ time, arrived, onArrive, onOpen, rideRequest, skipRequ
 
   useEffect(() => sceneRef.current?.setTime(time), [time]);
   useEffect(() => {
-    if (rideRequest) sceneRef.current?.rideIn(() => onArriveRef.current());
+    if (!rideRequest) return;
+    if (sceneRef.current) sceneRef.current.rideIn(() => onArriveRef.current());
+    else pending.current.ride = rideRequest;
   }, [rideRequest]);
   useEffect(() => {
-    if (skipRequest) sceneRef.current?.skipRide();
+    if (!skipRequest) return;
+    if (sceneRef.current) sceneRef.current.skipRide();
+    else onArriveRef.current();
   }, [skipRequest]);
   useEffect(() => {
     if (resetRequest) sceneRef.current?.resetToGate();
@@ -65,7 +92,7 @@ export function Scene3D({ time, arrived, onArrive, onOpen, rideRequest, skipRequ
 
   return (
     <div
-      className="cw-scene"
+      className={`cw-scene ${ready ? "is-ready" : ""}`}
       onPointerMove={(e) => {
         if (e.pointerType !== "mouse") return;
         const r = e.currentTarget.getBoundingClientRect();

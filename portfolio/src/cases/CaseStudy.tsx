@@ -4,15 +4,15 @@ import { projects, projectById, type ProjectId } from "../content/projects";
 import { owner } from "../content/owner";
 import { usePortal } from "../shell/Portal";
 import { cases } from "./content";
-import { SailorArtifact, LightleakArtifact, RanchArtifact, MarginArtifact } from "../shell/Artifacts";
+import { ProjectCover } from "../shell/ProjectCover";
 import "../shell/folder.css";
 import "./cases.css";
 
 const artifacts: Record<ProjectId, () => React.ReactNode> = {
-  sailor: () => <SailorArtifact />,
-  lightleak: () => <LightleakArtifact />,
-  ranch: () => <RanchArtifact />,
-  margin: () => <MarginArtifact />,
+  sailor: () => <ProjectCover id="sailor" decorative />,
+  lightleak: () => <ProjectCover id="lightleak" decorative />,
+  ranch: () => <ProjectCover id="ranch" decorative />,
+  margin: () => <ProjectCover id="margin" decorative />,
 };
 
 /** A live, scaled copy of the actual product, loaded only when asked for. */

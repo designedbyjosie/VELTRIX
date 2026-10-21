@@ -108,12 +108,12 @@ export const moodItems: MoodItem[] = [
 ];
 
 export const notes = [
-  { front: "Stillness is a design choice", back: "Not everything should move. One moving thing reads louder than ten.", related: "sailor" as ProjectId, colour: "#f4e7a1" },
-  { front: "Say what changed", back: "Every time an interface rearranges itself, it owes you a sentence.", related: "margin" as ProjectId, colour: "#e4d7f2" },
-  { front: "Design the fallback", back: "The no-WebGL version of the ranch is my favourite part. Constraints made it better.", related: "ranch" as ProjectId, colour: "#d7e3d6" },
-  { front: "Question I'm chasing", back: "Can recommendation feel like a conversation instead of a verdict?", related: "lightleak" as ProjectId, colour: "#f1d6d2" },
-  { front: "Get better at…", back: "Usability testing with real people. Building is easy to hide in.", colour: "#f4e7a1" },
-  { front: "Reminder", back: "Clarity first. Then personality. Never the other way round.", colour: "#e4d7f2" },
+  { front: "Stillness is a design choice", back: "Not everything should move. One moving thing reads louder than ten.", related: "sailor" as ProjectId, colour: "#f6d9d4" },
+  { front: "Say what changed", back: "Every time an interface rearranges itself, it owes you a sentence.", related: "margin" as ProjectId, colour: "#f3e6c8" },
+  { front: "Design the fallback", back: "The no-WebGL version of the ranch is my favourite part. Constraints made it better.", related: "ranch" as ProjectId, colour: "#e9c4c8" },
+  { front: "Question I'm chasing", back: "Can recommendation feel like a conversation instead of a verdict?", related: "lightleak" as ProjectId, colour: "#fbefe9" },
+  { front: "Get better at…", back: "Usability testing with real people. Building is easy to hide in.", colour: "#f6d9d4" },
+  { front: "Reminder", back: "Clarity first. Then personality. Never the other way round.", colour: "#f3e6c8" },
 ];
 
 export const experiments = [

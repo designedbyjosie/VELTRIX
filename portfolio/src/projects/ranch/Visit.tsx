@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { activities, stays } from "./data";
+import { Reveal } from "../../lib/scroll";
+import { SectionHead } from "./Chapters";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -42,10 +44,10 @@ export function Visit({ preset }: { preset: string | null }) {
   const tooSoon = new Date(arrive) < new Date(iso(today));
 
   return (
-    <section className="cw-section cw-visit" id="cw-visit">
-      <h2 className="cw-h">Plan a visit</h2>
-      <p className="cw-lede">A working demo with sample availability. Nothing here makes a real reservation.</p>
-      <div className="cw-visit__grid">
+    <section className="cw-section cw-visit" id="cw-visit" aria-labelledby="cw-visit-title">
+      <div className="cw-visit__inner">
+      <SectionHead num="09" kicker="Demo planner · sample availability" title="Plan a visit" id="cw-visit-title" light lede="A working demo with sample availability. Nothing here makes a real reservation." />
+      <Reveal kind="rise" className="cw-visit__grid">
         <form className="cw-form" onSubmit={(e) => (e.preventDefault(), !blocked.length && !tooSoon && setHeld(true))}>
           <label>
             Arriving
@@ -118,6 +120,7 @@ export function Visit({ preset }: { preset: string | null }) {
             </p>
           )}
         </aside>
+      </Reveal>
       </div>
     </section>
   );
@@ -143,8 +146,11 @@ export function Inquiry() {
   };
 
   return (
-    <section className="cw-section cw-inquiry">
-      <h2 className="cw-h">Write to the ranch</h2>
+    <section className="cw-section cw-inquiry" aria-labelledby="cw-inquiry-title">
+      <div className="cw-inquiry__head">
+        <h2 className="cw-h cw-h--small" id="cw-inquiry-title">Write to the ranch</h2>
+        <p className="cw-fine">By telegram, more or less. Demo only — nothing is sent.</p>
+      </div>
       {sent ? (
         <div className="cw-telegram" role="status">
           <p className="cw-telegram__head">Message composed · not sent</p>

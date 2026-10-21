@@ -23,6 +23,8 @@ const jobs = [
   "sailor-box",
   ...flavours.map((f) => `sailor-portrait&flavour=${f}`),
   ...flavours.map((f) => `sailor-cutout&flavour=${f}`),
+  "desk-base",
+  "desk-objects",
   ...(process.env.EXTRA_JOBS ? process.env.EXTRA_JOBS.split(",") : []),
 ];
 

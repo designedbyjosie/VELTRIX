@@ -6,13 +6,17 @@ import "@fontsource/libre-caslon-text/700.css";
 import "@fontsource/special-elite/400.css";
 import { useReducedMotion } from "../../lib/motion";
 import { useFocusTrap } from "../../lib/useFocusTrap";
+import { useParallax } from "../../lib/scroll";
 import { locations, type LocationId } from "./data";
 import { Scene3D, FlatLandscape } from "./Entrance";
-import { webglAvailable, type TimeOfDay } from "./scene3d";
+import { webglAvailable } from "./gl";
+import type { TimeOfDay } from "./scene3d";
 import { Ambient } from "./ambient";
 import { Story, Activities, Stays, PropertyMap, PhotoBox, Postcards, Journal } from "./Sections";
 import { Visit, Inquiry } from "./Visit";
 import { LocationArt } from "./LocationArt";
+import { Bar, go } from "./Bar";
+import { SunsetChapters, FourLights, Footer } from "./Chapters";
 import "./ranch.css";
 
 const times: [TimeOfDay, string][] = [
@@ -21,6 +25,8 @@ const times: [TimeOfDay, string][] = [
   ["dusk", "Dusk"],
   ["night", "Night"],
 ];
+
+const TITLE = ["Copper", "Wells"];
 
 export default function CopperWells({ path }: { path: string[] }) {
   const reduced = useReducedMotion();
@@ -38,7 +44,10 @@ export default function CopperWells({ path }: { path: string[] }) {
   const [sound, setSound] = useState(false);
   const [visitPreset, setVisitPreset] = useState<string | null>(null);
   const ambient = useRef<Ambient | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const hero = useRef<HTMLElement>(null);
   const flat = mode === "flat";
+  useParallax(hero);
 
   useEffect(() => {
     ambient.current?.setTime(time);
@@ -74,62 +83,79 @@ export default function CopperWells({ path }: { path: string[] }) {
     setReset((n) => n + 1);
   };
 
+  const toTop = () => window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+
   const planFrom = (kind?: string) => {
     setOpen(null);
     setVisitPreset(kind ?? null);
-    document.getElementById("cw-visit")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" });
+    go("cw-visit", !reduced);
   };
 
   return (
-    <div className={`cw cw--${time}`}>
-      <a className="cw-skip" href="#cw-story" onClick={(e) => (e.preventDefault(), document.getElementById("cw-story")?.scrollIntoView())}>
+    <div className={`cw cw--${time}`} ref={root} id="cw-top">
+      <a className="cw-skip" href="#cw-story" onClick={(e) => (e.preventDefault(), go("cw-story", false))}>
         Skip the landscape
       </a>
-      <header className="cw-bar">
-        <span className="cw-bar__mark">Copper Wells</span>
-        <nav aria-label="Copper Wells Ranch">
-          <a href="#cw-story" onClick={(e) => (e.preventDefault(), document.getElementById("cw-story")?.scrollIntoView({ behavior: "smooth" }))}>Story</a>
-          <a href="#cw-do" onClick={(e) => (e.preventDefault(), document.getElementById("cw-do")?.scrollIntoView({ behavior: "smooth" }))}>Things to do</a>
-          <a href="#cw-map" onClick={(e) => (e.preventDefault(), document.getElementById("cw-map")?.scrollIntoView({ behavior: "smooth" }))}>Map</a>
-          <a href="#cw-archive" onClick={(e) => (e.preventDefault(), document.getElementById("cw-archive")?.scrollIntoView({ behavior: "smooth" }))}>Archive</a>
-          <a className="cw-bar__cta" href="#cw-visit" onClick={(e) => (e.preventDefault(), planFrom())}>Plan a visit</a>
-        </nav>
-      </header>
+      <Bar root={root} reduced={reduced} onPlan={() => planFrom()} />
 
-      <section className={`cw-hero ${arrived ? "is-arrived" : ""} ${riding ? "is-riding" : ""}`} aria-label="The ranch landscape">
-        {flat ? (
-          <FlatLandscape time={time} arrived={arrived} onOpen={setOpen} />
-        ) : (
-          <Scene3D
-            time={time}
-            arrived={arrived}
-            riding={riding}
-            rideRequest={ride}
-            skipRequest={skip}
-            resetRequest={reset}
-            onArrive={() => {
-              setRiding(false);
-              setArrived(true);
-            }}
-            onOpen={setOpen}
-            onFail={() => setMode("flat")}
-          />
-        )}
+      <section ref={hero} className={`cw-hero ${arrived ? "is-arrived" : ""} ${riding ? "is-riding" : ""}`} aria-label="The ranch landscape">
+        <div className="cw-hero__world">
+          {flat ? (
+            <FlatLandscape time={time} arrived={arrived} onOpen={setOpen} />
+          ) : (
+            <Scene3D
+              time={time}
+              arrived={arrived}
+              riding={riding}
+              rideRequest={ride}
+              skipRequest={skip}
+              resetRequest={reset}
+              onArrive={() => {
+                setRiding(false);
+                setArrived(true);
+              }}
+              onOpen={setOpen}
+              onFail={() => setMode("flat")}
+            />
+          )}
+        </div>
         <div className="cw-hero__grain" aria-hidden="true" />
+        <div className="cw-hero__frame" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </div>
 
         {!arrived && (
           <div className={`cw-poster ${riding ? "is-leaving" : ""}`}>
-            <p className="cw-poster__kicker">A guest ranch in the Vara Valley · Est. 1891</p>
+            <p className="cw-poster__kicker">
+              <span>A guest ranch in the Vara Valley</span>
+              <span className="cw-poster__star" aria-hidden="true">✦</span>
+              <span>Est. 1891</span>
+            </p>
             <h1 className="cw-poster__title">
-              Copper
-              <br />
-              Wells
+              <span className="cw-sr">Copper Wells</span>
+              {TITLE.map((word, w) => (
+                <span className="cw-poster__word" key={word} aria-hidden="true">
+                  {[...word].map((ch, i) => (
+                    <span key={i} className="cw-poster__ch" style={{ "--i": w * 6 + i } as React.CSSProperties}>
+                      {ch}
+                    </span>
+                  ))}
+                </span>
+              ))}
             </h1>
             <p className="cw-poster__line">Thirty miles of dirt road, fourteen horses, and a sky that goes all the way down.</p>
             {!riding && (
-              <button className="cw-btn cw-btn--big" onClick={rideIn}>
-                Ride in
-              </button>
+              <div className="cw-poster__ctas">
+                <button className="cw-btn cw-btn--big" onClick={rideIn}>
+                  Ride in <span className="cw-btn__arrow" aria-hidden="true">→</span>
+                </button>
+                <a className="cw-poster__alt" href="#cw-story" onClick={(e) => (e.preventDefault(), go("cw-story", !reduced))}>
+                  Or read the story first
+                </a>
+              </div>
             )}
           </div>
         )}
@@ -140,17 +166,21 @@ export default function CopperWells({ path }: { path: string[] }) {
         )}
         {arrived && (
           <div className="cw-arrived">
+            <p className="cw-arrived__kicker">Copper Wells · {times.find(([t]) => t === time)?.[1]}</p>
             <p className="cw-arrived__title">You've arrived.</p>
             <p>Choose a place on the ranch to explore it.</p>
             <ul className="cw-arrived__list">
-              {locations.map((l) => (
+              {locations.map((l, i) => (
                 <li key={l.id}>
-                  <button onClick={() => setOpen(l.id)}>{l.name}</button>
+                  <button onClick={() => setOpen(l.id)}>
+                    <span aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+                    {l.name}
+                  </button>
                 </li>
               ))}
             </ul>
             <button className="cw-textbtn" onClick={backToGate}>
-              Back to the gate
+              ← Back to the gate
             </button>
           </div>
         )}
@@ -159,11 +189,17 @@ export default function CopperWells({ path }: { path: string[] }) {
           <div className="cw-seg" role="radiogroup" aria-label="Time of day">
             {times.map(([t, label]) => (
               <button key={t} role="radio" aria-checked={time === t} onClick={() => setTime(t)}>
+                <span className={`cw-seg__dot cw-seg__dot--${t}`} aria-hidden="true" />
                 {label}
               </button>
             ))}
           </div>
           <button className="cw-chipbtn" aria-pressed={sound} onClick={toggleSound}>
+            <span className={`cw-eq ${sound ? "is-on" : ""}`} aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
             {sound ? "Sound on — turn off" : "Turn on sound"}
           </button>
           {gl && (
@@ -172,13 +208,26 @@ export default function CopperWells({ path }: { path: string[] }) {
             </button>
           )}
         </div>
+        {!arrived && !riding && (
+          <span className="cw-hero__cue" aria-hidden="true">
+            <span>Scroll</span>
+          </span>
+        )}
         {!gl && <p className="cw-hero__note">Showing the illustrated landscape — this browser doesn't support WebGL.</p>}
         {gl && flat && reduced && <p className="cw-hero__note">Showing the still landscape because your device asks for reduced motion.</p>}
       </section>
 
+      <SunsetChapters reduced={reduced} />
       <Story />
       <Activities onPlan={planFrom} />
       <Stays onPlan={planFrom} />
+      <FourLights
+        reduced={reduced}
+        onSee={(t) => {
+          setTime(t);
+          toTop();
+        }}
+      />
       <PropertyMap onOpen={setOpen} />
       <PhotoBox />
       <Postcards />
@@ -186,13 +235,14 @@ export default function CopperWells({ path }: { path: string[] }) {
       <Visit preset={visitPreset} />
       <Inquiry />
 
-      <footer className="cw-foot">
-        <p className="cw-foot__mark">Copper Wells Ranch</p>
-        <p>
-          A fictional destination designed as a self-initiated portfolio concept. The ranch, the valley, its history and
-          its people are invented. No bookings or enquiries are processed.
-        </p>
-      </footer>
+      <Footer
+        reduced={reduced}
+        onPlan={() => planFrom()}
+        onGate={() => {
+          backToGate();
+          toTop();
+        }}
+      />
 
       {open && <LocationPanel id={open} onClose={() => setOpen(null)} onPlan={planFrom} onGo={setOpen} />}
     </div>

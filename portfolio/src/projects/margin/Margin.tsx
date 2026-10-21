@@ -5,6 +5,7 @@ import "@fontsource/fraunces/600.css";
 import "@fontsource/public-sans/400.css";
 import "@fontsource/public-sans/600.css";
 import "@fontsource/public-sans/700.css";
+import "@fontsource/caveat/500.css";
 import { usePersistentState } from "../../lib/storage";
 import { href, navigate } from "../../lib/router";
 import { defaultInput, diffPlans, generate, packingList, type Change, type Plan, type TripInput } from "./engine";
@@ -13,6 +14,9 @@ import { Onboarding } from "./Onboarding";
 import { Discover } from "./Discover";
 import { TripView } from "./TripView";
 import { Trips } from "./Trips";
+import { Home } from "./Home";
+import { Reveal, SplitWords, useScrolled } from "../../lib/scroll";
+import { prefersReducedMotion } from "../../lib/motion";
 import "./margin.css";
 
 export interface SavedTrip {
@@ -44,6 +48,7 @@ export default function Margin({ path }: { path: string[] }) {
   const [tripId, setTripId] = useState<string | null>(null);
   const baseline = useRef<{ plan: Plan; input: TripInput } | null>(null);
   const settle = useRef<number>(0);
+  const scrolled = useScrolled(24);
 
   // Reopening a saved trip from the dashboard.
   useEffect(() => {
@@ -148,13 +153,25 @@ export default function Margin({ path }: { path: string[] }) {
         onToggle={(id, key) => setTrips((list) => list.map((t) => (t.id === id ? { ...t, checks: { ...t.checks, [key]: !t.checks[key] } } : t)))}
       />
     );
-  else screen = <Home trips={trips.length} />;
+  else screen = <Home trips={trips.length} setInput={setInput} />;
+
+  // a new page of the journal: start at the top
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view]);
 
   return (
-    <div className="mg">
-      <header className="mg-bar">
-        <a className="mg-mark" href={href(base)}>
+    <div className={`mg mg--${view}`}>
+      <a className="mg-skip" href="#mg-main" onClick={(e) => (e.preventDefault(), document.getElementById("mg-main")?.focus())}>
+        Skip to content
+      </a>
+      <header className={`mg-bar ${scrolled ? "is-scrolled" : ""}`}>
+        <a className="mg-mark" href={href(base)} aria-label="Margin, home">
+          <span className="mg-mark__rule" aria-hidden="true" />
           Margin
+          <span className="mg-mark__tag" aria-hidden="true">
+            concept
+          </span>
         </a>
         <nav aria-label="Margin">
           <a href={href(`${base}/plan`)} aria-current={view === "plan" || view === "discover" ? "page" : undefined}>
@@ -170,46 +187,73 @@ export default function Margin({ path }: { path: string[] }) {
           </a>
         </nav>
       </header>
-      <p className="mg-proto">Prototype · sample destinations and illustrative prices · nothing is booked</p>
-      <main className="mg-main">{screen}</main>
+      <p className="mg-proto">
+        <span className="mg-proto__dot" aria-hidden="true" />
+        Prototype · sample destinations and illustrative prices · nothing is booked
+      </p>
+      <main id="mg-main" tabIndex={-1} className={`mg-main ${view === "home" ? "mg-main--wide" : ""}`}>
+        <div key={view} className="mg-page">
+          {screen}
+        </div>
+      </main>
+      <Footer trips={trips.length} />
     </div>
   );
 }
 
-function Home({ trips }: { trips: number }) {
+function Footer({ trips }: { trips: number }) {
   return (
-    <section className="mg-home">
-      <div className="mg-home__copy">
-        <h1>Trips that fit in the margins of your life.</h1>
-        <p className="mg-lede">
-          Tell Margin what you can spend, how many days you really have and how you like to travel. It builds a realistic
-          day-by-day plan around you — and rebuilds it, out loud, whenever something changes.
-        </p>
-        <div className="mg-actions">
-          <a className="mg-btn" href={href(`${base}/plan`)}>
-            Plan a trip
-          </a>
-          {trips > 0 && (
-            <a className="mg-btn mg-btn--quiet" href={href(`${base}/trips`)}>
-              Open your trips ({trips})
+    <footer className="mg-foot">
+      <div className="mg-foot__perf" aria-hidden="true" />
+      <div className="mg-foot__inner">
+        <div className="mg-foot__lead">
+          <p className="mg-foot__hand">p.s.</p>
+          <p className="mg-foot__line">
+            <SplitWords text="Leave room" />
+            <br />
+            <SplitWords text="for the unplanned." className="mg-foot__ital" delay={160} />
+          </p>
+          <Reveal className="mg-foot__cta" delay={300}>
+            <a className="mg-btn mg-btn--light mg-btn--arrow" href={href(`${base}/plan`)}>
+              Start a trip page <span aria-hidden="true">→</span>
             </a>
-          )}
+            {trips > 0 && (
+              <a className="mg-btn mg-btn--ghost-light" href={href(`${base}/trips`)}>
+                Your trips ({trips})
+              </a>
+            )}
+          </Reveal>
+        </div>
+        <div className="mg-foot__stub" aria-label="About this concept">
+          <p className="mg-foot__stamp" aria-hidden="true">
+            <span>Margin</span>
+            <small>sample edition</small>
+          </p>
+          <dl>
+            <div>
+              <dt>What it is</dt>
+              <dd>A self-initiated concept for a personalised travel planner.</dd>
+            </div>
+            <div>
+              <dt>The data</dt>
+              <dd>Six sample destinations. Every price is an illustrative estimate.</dd>
+            </div>
+            <div>
+              <dt>Your trips</dt>
+              <dd>Stay in this browser. Nothing is booked, sent or shared.</dd>
+            </div>
+          </dl>
+          <button
+            className="mg-textlink mg-textlink--light"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+              document.getElementById("mg-main")?.focus({ preventScroll: true });
+            }}
+          >
+            Back to the first page <span aria-hidden="true">↑</span>
+          </button>
         </div>
       </div>
-      <ol className="mg-home__how" aria-label="How it works">
-        <li>
-          <strong>Your life first.</strong> Budget, days off, pace, walking, diet and access needs — only what's useful, and
-          most of it optional.
-        </li>
-        <li>
-          <strong>The real budget.</strong> Getting there, sleeping, eating and getting around come out before a single
-          ticket is chosen.
-        </li>
-        <li>
-          <strong>A plan that adapts.</strong> Lower the budget and the stay changes, paid activities give way to free
-          ones, and you see each swap.
-        </li>
-      </ol>
-    </section>
+    </footer>
   );
 }
