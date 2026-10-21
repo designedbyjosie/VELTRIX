@@ -233,32 +233,32 @@
 }
 
 /* the live laptop screen */
-.desk-screen {
+.desk-live {
   position: absolute;
   overflow: hidden;
   border-radius: 2px;
   background: #1d1a1b;
 }
-.desk-screen__slide {
+.desk-live__slide {
   position: absolute;
   inset: 0;
   opacity: 0;
   transition: opacity 0.9s var(--ease-in-out);
 }
-.desk-screen__slide.is-on {
+.desk-live__slide.is-on {
   opacity: 1;
 }
-.desk-screen__slide img {
+.desk-live__slide img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transform: scale(1.06);
   transition: transform 3.6s linear;
 }
-.desk-screen__slide.is-on img {
+.desk-live__slide.is-on img {
   transform: scale(1);
 }
-.desk-screen__caption {
+.desk-live__caption {
   position: absolute;
   left: 6%;
   bottom: 7%;
@@ -268,13 +268,13 @@
   color: var(--ink);
   font: 600 clamp(6px, 0.6vw, 11px) var(--f-ui);
 }
-.desk-screen__glare {
+.desk-live__glare {
   position: absolute;
   inset: 0;
   background: linear-gradient(125deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 38%);
   pointer-events: none;
 }
-.desk-object:hover .desk-screen {
+.desk-object:hover .desk-live {
   box-shadow: 0 0 22px rgba(255, 220, 225, 0.25);
 }
 
@@ -545,17 +545,16 @@
   width: min(980px, 100%);
   max-height: 92vh;
   overflow: auto;
-  background: var(--grain), var(--ivory);
-  padding: clamp(22px, 3vw, 40px);
-  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
-  border-radius: 6px;
+  background: var(--ivory);
+  padding: clamp(22px, 3vw, 44px);
+  box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.6);
+  border-radius: 20px;
+  font-family: var(--f-ui);
 }
 .desk-view h2 {
-  font-family: var(--f-script);
-  font-weight: 400;
-  font-size: clamp(40px, 5vw, 60px);
-  line-height: 1.05;
-  margin: 0 0 14px;
+  font: 400 clamp(38px, 4.4vw, 58px) / 1 var(--f-display);
+  letter-spacing: -0.01em;
+  margin: 0 0 16px;
 }
 .desk-view h3 {
   font-size: 26px;
@@ -566,12 +565,11 @@
   float: right;
   top: 0;
   z-index: 3;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--ivory);
-  padding: 6px 14px;
-  font-family: var(--f-pixel);
-  font-size: 10px;
+  background: #fff;
+  padding: 8px 14px;
+  font: 600 13px var(--f-ui);
   cursor: pointer;
 }
 .desk-fine {
@@ -592,16 +590,16 @@
 }
 .desk-chips button,
 .desk-tabs button {
-  border: 1px solid var(--ink);
+  border: 1px solid var(--line);
   background: transparent;
   border-radius: 999px;
-  padding: 5px 12px;
-  font: 600 15px var(--f-serif);
+  padding: 8px 14px;
+  font: 600 13px var(--f-ui);
   cursor: pointer;
 }
 .desk-chips button[aria-pressed="true"],
 .desk-tabs button[aria-selected="true"] {
-  background: var(--ink);
+  background: var(--rosewood);
   color: var(--ivory);
 }
 .desk-tabs {
@@ -657,17 +655,19 @@
 
 /* laptop */
 .desk-view--laptop {
-  background: #e6e5ea;
-  border: 14px solid #2d2b31;
-  border-radius: 16px;
+  background: #f3f1f2;
+  border: 12px solid #1b1a1c;
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 1px #6b6b70,
+    0 50px 100px -20px rgba(0, 0, 0, 0.6);
 }
 .desk-screen__bar {
   display: flex;
   align-items: center;
   gap: 6px;
   margin: -8px 0 14px;
-  font-family: var(--f-pixel);
-  font-size: 9px;
+  font: 600 11px var(--f-ui);
   color: #6c6a72;
 }
 .desk-screen__bar i {
@@ -676,11 +676,14 @@
   border-radius: 50%;
   background: #ecc9c7;
 }
+.desk-screen__bar i:nth-child(1) {
+  background: #ec6a5e;
+}
 .desk-screen__bar i:nth-child(2) {
-  background: #f4e7a1;
+  background: #f4bf4f;
 }
 .desk-screen__bar i:nth-child(3) {
-  background: #d7e3d6;
+  background: #61c554;
 }
 .desk-process {
   display: grid;
@@ -699,7 +702,8 @@
   gap: 6px;
   align-content: start;
   font-size: 16px;
-  border-top: 4px solid var(--lavender);
+  border-radius: 12px;
+  border-top: 4px solid var(--rose-dust);
 }
 .desk-process strong::before {
   content: counter(step) ". ";

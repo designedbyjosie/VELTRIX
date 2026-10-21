@@ -114,7 +114,8 @@ export const cases: Record<ProjectId, CaseContent> = {
     ],
     type: [
       { name: "Anton", role: "Track titles, screen titles", sample: "WHAT DOES IT SOUND LIKE?", family: "Anton, Impact, sans-serif" },
-      { name: "Manrope", role: "Body, controls, dreamy titles", sample: "Half asleep in amber", family: "Manrope, sans-serif" },
+      { name: "Instrument Serif", role: "The soft half of a headline", sample: "sound like?", family: "'Instrument Serif', serif" },
+      { name: "Manrope", role: "Body and controls", sample: "Half asleep in amber", family: "Manrope, sans-serif" },
     ],
     colours: [
       { hex: "#ecebe5", name: "Photo paper" },
@@ -260,6 +261,7 @@ export const cases: Record<ProjectId, CaseContent> = {
     type: [
       { name: "Fraunces", role: "Titles, journal moments", sample: "Lisbon", family: "Fraunces, serif" },
       { name: "Public Sans", role: "Everything you operate", sample: "It fits, with $713 to spare.", family: "'Public Sans', sans-serif" },
+      { name: "Caveat", role: "Notes in the margin", sample: "keep day 3's afternoon empty", family: "Caveat, cursive" },
     ],
     colours: [
       { hex: "#1f2a44", name: "Route ink" },

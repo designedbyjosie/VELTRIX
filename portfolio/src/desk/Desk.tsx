@@ -220,14 +220,14 @@ function LaptopScreen() {
   const width = ((Math.max(...xs) - Math.min(...xs)) / b.w) * 100;
   const height = ((Math.max(...ys) - Math.min(...ys)) / b.h) * 100;
   return (
-    <span className="desk-screen" aria-hidden="true" style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}>
+    <span className="desk-live" aria-hidden="true" style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}>
       {ids.map((id, n) => (
-        <span key={id} className={`desk-screen__slide ${n === i ? "is-on" : ""}`}>
+        <span key={id} className={`desk-live__slide ${n === i ? "is-on" : ""}`}>
           <ProjectCover id={id} decorative />
-          <span className="desk-screen__caption">{projectById(id)?.title}</span>
+          <span className="desk-live__caption">{projectById(id)?.title}</span>
         </span>
       ))}
-      <span className="desk-screen__glare" />
+      <span className="desk-live__glare" />
     </span>
   );
 }

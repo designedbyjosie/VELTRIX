@@ -144,14 +144,15 @@ export function Archive({ entranceFrom, onClose }: Props) {
           <span className="pf-nav__name">{owner.name}</span>
         </button>
         <div className="pf-nav__links">
-          <a className="pf-pill" href="#work" onClick={(e) => (e.preventDefault(), scrollTo("work"))}>
+          <a className="pf-pill pf-pill--wide-only" href="#work" onClick={(e) => (e.preventDefault(), scrollTo("work"))}>
             Work
           </a>
           <a className="pf-pill" href={href("/desk")}>
             The desk
           </a>
           <button className="pf-pill" onClick={() => setQuickRead(true)}>
-            60-second version
+            <span className="pf-wide-only">60-second version</span>
+            <span className="pf-narrow-only">60 sec</span>
           </button>
           <a className="pf-pill pf-pill--solid" href="#contact" onClick={(e) => (e.preventDefault(), scrollTo("contact"))}>
             Contact
