@@ -1,21 +1,36 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { href } from "../../lib/router";
+import { asset } from "../../lib/asset";
+import { Reveal } from "../../lib/scroll";
 import { flavours, formats, type Flavour } from "./data";
-import { Can, Motif } from "./Can";
+import { Motif } from "./Can";
 import { base, useShop } from "./SailorSprings";
 import { money, MAX_QTY } from "./bag";
 
-type View = "front" | "label" | "table";
+type View = "photo" | "can" | "label" | "ice";
 
 export function Product({ flavour: f }: { flavour: Flavour }) {
   const { add, setFlavour } = useShop();
   const [format, setFormat] = useState(formats[1].id);
   const [qty, setQty] = useState(1);
-  const [view, setView] = useState<View>("front");
+  const [view, setView] = useState<View>("photo");
   const fmt = formats.find((x) => x.id === format)!;
   const idx = flavours.indexOf(f);
+  const prev = flavours[(idx - 1 + flavours.length) % flavours.length];
   const next = flavours[(idx + 1) % flavours.length];
-  const pairs = flavours.filter((x) => x.id !== f.id && x.mood.some((m) => f.mood.includes(m))).slice(0, 2);
+
+  useEffect(() => {
+    setFlavour(f.id);
+    setView("photo");
+    setQty(1);
+  }, [f.id, setFlavour]);
+
+  const views: [View, string][] = [
+    ["photo", "In the light"],
+    ["can", "The can"],
+    ["label", "Label, unwrapped"],
+    ...(f.id === "fog-line" ? ([["ice", "On ice"]] as [View, string][]) : []),
+  ];
 
   return (
     <article className="ss-pdp">
@@ -26,23 +41,18 @@ export function Product({ flavour: f }: { flavour: Flavour }) {
       <div className="ss-pdp__grid">
         <div className="ss-pdp__media">
           <div className={`ss-pdp__stage ss-pdp__stage--${view}`}>
-            {view === "front" && (
-              <>
-                <span className="ss-pdp__sun" />
-                <Can flavour={f} className="ss-pdp__can" title={`${f.name}, front of can`} />
-              </>
+            {view === "photo" && <img key="photo" src={asset(`img/sailor/portrait-${f.id}.webp`)} alt={`${f.name} on a plinth in dappled afternoon light`} />}
+            {view === "can" && (
+              <div className="ss-pdp__can" key="can">
+                <span className="ss-pdp__sun" aria-hidden="true" />
+                <img src={asset(`img/sailor/can-${f.id}.webp`)} alt={`${f.name} can, front`} />
+              </div>
             )}
             {view === "label" && <LabelFlat flavour={f} />}
-            {view === "table" && <TableScene flavour={f} />}
+            {view === "ice" && <img key="ice" src={asset("img/sailor/ice.webp")} alt="Fog Line resting in ice" />}
           </div>
           <div className="ss-views" role="tablist" aria-label="Product images">
-            {(
-              [
-                ["front", "The can"],
-                ["label", "Label, unwrapped"],
-                ["table", "On the table"],
-              ] as [View, string][]
-            ).map(([v, label]) => (
+            {views.map(([v, label]) => (
               <button key={v} role="tab" aria-selected={view === v} className="ss-views__tab" onClick={() => setView(v)}>
                 {label}
               </button>
@@ -52,7 +62,7 @@ export function Product({ flavour: f }: { flavour: Flavour }) {
 
         <div className="ss-pdp__info">
           <p className="ss-pdp__mile">
-            Mile {f.mile} · {f.place}
+            <span>Mile {f.mile}</span> {f.place}
           </p>
           <h1>{f.name}</h1>
           <p className="ss-pdp__line">{f.line}</p>
@@ -99,33 +109,57 @@ export function Product({ flavour: f }: { flavour: Flavour }) {
               Add to bag — {money(fmt.price * qty)}
             </button>
           </div>
-          <p className="ss-pdp__ship">Free shipping on orders over $40. Concept store: checkout is switched off.</p>
-
-          <div className="ss-occasions">
-            <h2>Good for</h2>
-            <p>{f.occasions.join(" · ")}</p>
-          </div>
+          <p className="ss-pdp__ship">Free shipping over $40 · Concept store: checkout is switched off.</p>
+          <p className="ss-pdp__good">
+            <span>Good for</span> {f.occasions.join(", ").toLowerCase()}.
+          </p>
         </div>
       </div>
 
-      <section className="ss-pairs" aria-labelledby="pairs-title">
-        <h2 id="pairs-title">Further down the road</h2>
-        <div className="ss-pairs__row">
-          {[next, ...pairs.filter((p) => p.id !== next.id)].slice(0, 3).map((p) => (
-            <a key={p.id} className="ss-pair" href={href(`${base}/shop/${p.id}`)} onClick={() => setFlavour(p.id)} style={{ "--card": p.weather.label } as React.CSSProperties}>
-              <Can flavour={p} className="ss-pair__can" />
-              <span>
-                <strong>{p.name}</strong>
-                <br />
-                Mile {p.mile}
-              </span>
-            </a>
-          ))}
-        </div>
+      <section className="ss-pdp__place">
+        <Reveal as="p" className="ssh-eyebrow-line">
+          Where it's from
+        </Reveal>
+        <Reveal as="h2" className="ssh-display" delay={60}>
+          Mile {f.mile}, <em>{f.place}.</em>
+        </Reveal>
+        <Reveal className="ss-miniroad" delay={120}>
+          <svg viewBox="0 0 1000 120" role="img" aria-label={`Map of the coast road with ${f.name} at mile ${f.mile} of 36`}>
+            <path d={roadPath} className="ss-miniroad__path" />
+            {flavours.map((x) => {
+              const [cx, cy] = roadPoint(x.mile / 36);
+              return (
+                <g key={x.id} className={x.id === f.id ? "is-here" : ""}>
+                  <circle cx={cx} cy={cy} r={x.id === f.id ? 12 : 6} />
+                  <text x={cx} y={cy - 22} textAnchor="middle">
+                    {x.mile}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </Reveal>
       </section>
+
+      <nav className="ss-pdp__next" aria-label="Other flavours">
+        <a href={href(`${base}/shop/${prev.id}`)} style={{ "--c-sky": prev.weather.sky, "--c-ink": prev.weather.ink } as React.CSSProperties}>
+          <span>Back down the road</span>
+          <strong>{prev.name}</strong>
+          <img src={asset(`img/sailor/can-${prev.id}.webp`)} alt="" loading="lazy" />
+        </a>
+        <a href={href(`${base}/shop/${next.id}`)} style={{ "--c-sky": next.weather.sky, "--c-ink": next.weather.ink } as React.CSSProperties}>
+          <span>Further down the road</span>
+          <strong>{next.name}</strong>
+          <img src={asset(`img/sailor/can-${next.id}.webp`)} alt="" loading="lazy" />
+        </a>
+      </nav>
     </article>
   );
 }
+
+/** The coast road as a gentle wave; stops sit exactly on it. */
+const roadPoint = (t: number) => [10 + t * 980, 66 - Math.sin(t * Math.PI * 2.1) * 24] as const;
+const roadPath = "M" + Array.from({ length: 61 }, (_, i) => roadPoint(i / 60).map((v) => v.toFixed(1)).join(" ")).join(" L");
 
 function Meter({ label, value, max }: { label: string; value: number; max: number }) {
   return (
@@ -146,7 +180,7 @@ function Meter({ label, value, max }: { label: string; value: number; max: numbe
 }
 
 /** The label as a printer would see it: flat, with the back panel copy. */
-function LabelFlat({ flavour: f }: { flavour: Flavour }) {
+export function LabelFlat({ flavour: f }: { flavour: Flavour }) {
   const w = f.weather;
   return (
     <svg viewBox="0 0 520 260" className="ss-label-flat" role="img" aria-label={`${f.name} label laid flat`}>
@@ -172,7 +206,7 @@ function LabelFlat({ flavour: f }: { flavour: Flavour }) {
       <text x="282" y="120" fontFamily="'Bricolage Grotesque'" fontWeight="600" fontSize="11" fill={w.labelInk}>
         FROM THE ROAD
       </text>
-      {wrap(`Drawn from the spring at Mile 36 and flavoured with what grows along the drive out. Best cold, best outside.`, 38).map((line, i) => (
+      {["Drawn from the spring at Mile 36 and flavoured", "with what grows along the drive out.", "Best cold, best outside."].map((line, i) => (
         <text key={i} x="282" y={138 + i * 16} fontFamily="'Bricolage Grotesque'" fontSize="11" fill={w.labelInk}>
           {line}
         </text>
@@ -188,33 +222,4 @@ function LabelFlat({ flavour: f }: { flavour: Flavour }) {
       </g>
     </svg>
   );
-}
-
-function TableScene({ flavour: f }: { flavour: Flavour }) {
-  return (
-    <div className="ss-table" role="img" aria-label={`${f.name} poured over ice on a sunny table`}>
-      <span className="ss-table__light" />
-      <span className="ss-table__glass">
-        <i />
-        <i />
-        <i />
-      </span>
-      <Can flavour={f} className="ss-table__can" />
-      <span className="ss-table__slice" />
-    </div>
-  );
-}
-
-function wrap(text: string, n: number) {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let cur = "";
-  for (const w of words) {
-    if ((cur + " " + w).trim().length > n) {
-      lines.push(cur.trim());
-      cur = w;
-    } else cur += " " + w;
-  }
-  if (cur.trim()) lines.push(cur.trim());
-  return lines;
 }

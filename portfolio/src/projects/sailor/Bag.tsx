@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useFocusTrap } from "../../lib/useFocusTrap";
 import { href } from "../../lib/router";
 import { flavourById } from "./data";
-import { Can } from "./Can";
+import { asset } from "../../lib/asset";
 import { base, useShop } from "./SailorSprings";
 import { lineKey, lineName, money, totals, unitPrice, FREE_SHIPPING_FROM, MAX_QTY } from "./bag";
 
@@ -25,7 +25,9 @@ export function Bag({ open, onClose }: { open: boolean; onClose: () => void }) {
         tabIndex={-1}
       >
         <header className="ss-bag__head">
-          <h2 id="ss-bag-title">Your bag</h2>
+          <h2 id="ss-bag-title">
+            Your <em>bag</em>
+          </h2>
           <button className="ss-bag__close" onClick={onClose} data-autofocus>
             Close
           </button>
@@ -62,8 +64,8 @@ export function Bag({ open, onClose }: { open: boolean; onClose: () => void }) {
                 const f = flavourById(l.product);
                 return (
                   <li key={key} className="ss-line">
-                    <span className="ss-line__thumb" style={{ background: f?.weather.sky ?? "#e4edf5" }}>
-                      {f ? <Can flavour={f} /> : <span className="ss-line__box">12</span>}
+                    <span className="ss-line__thumb" style={{ background: f?.weather.sky ?? "#efe3d2" }}>
+                      <img src={asset(f ? `img/sailor/can-${f.id}.webp` : "img/sailor/box.webp")} alt="" className={f ? "" : "is-box"} />
                     </span>
                     <span className="ss-line__info">
                       <strong>{name}</strong>

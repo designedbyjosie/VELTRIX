@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { href } from "../../lib/router";
+import { asset } from "../../lib/asset";
 import { recommend, type FinderAnswers } from "./finder";
-import { Can } from "./Can";
 import { base, useShop } from "./SailorSprings";
 
 const questions = [
@@ -18,7 +18,7 @@ const questions = [
   },
   {
     key: "sweet",
-    title: "How much fruit sweetness do you like?",
+    title: "How much fruit sweetness?",
     options: [
       [0, "None at all"],
       [1, "A hint"],
@@ -48,72 +48,60 @@ export function Finder() {
   const choose = (key: string, value: unknown) => {
     const next = { ...answers, [key]: value };
     setAnswers(next);
-    if (step === questions.length - 1) {
-      const r = recommend(next as FinderAnswers);
-      setFlavour(r.best.flavour.id);
-    }
+    if (step === questions.length - 1) setFlavour(recommend(next as FinderAnswers).best.flavour.id);
     setStep((s) => s + 1);
   };
 
   return (
     <div className="ss-finder">
-      <div className="ss-section-head ss-section-head--page">
-        <h1>Find your flavour</h1>
-        <p>Three questions. The page will take on the colours of your match.</p>
-      </div>
-
-      <ol className="ss-finder__progress" aria-label="Progress">
-        {questions.map((q, i) => (
-          <li key={q.key} className={i < step ? "done" : i === step ? "now" : ""}>
-            <span className="sr-only">
-              Question {i + 1}: {i < step ? "answered" : i === step ? "current" : "not yet"}
-            </span>
-          </li>
-        ))}
-      </ol>
-
       {!done && (
-        <fieldset className="ss-finder__q" key={step}>
-          <legend>{questions[step].title}</legend>
-          <div className="ss-finder__opts">
-            {questions[step].options.map(([value, label]) => (
-              <button key={String(value)} className="ss-finder__opt" onClick={() => choose(questions[step].key, value)}>
+        <section className="ss-finder__q" key={step} aria-labelledby="ss-q">
+          <p className="ss-finder__count">
+            Question {step + 1} of {questions.length}
+          </p>
+          <div className="ss-finder__bar" aria-hidden="true">
+            <i style={{ width: `${(step / questions.length) * 100}%` }} />
+          </div>
+          <h1 id="ss-q" className="ss-finder__title">
+            {questions[step].title}
+          </h1>
+          <div className="ss-finder__opts" role="group" aria-labelledby="ss-q">
+            {questions[step].options.map(([value, label], i) => (
+              <button key={String(value)} className="ss-finder__opt" style={{ animationDelay: `${i * 60}ms` }} onClick={() => choose(questions[step].key, value)}>
                 {label}
               </button>
             ))}
           </div>
           {step > 0 && (
-            <button className="ss-link" onClick={() => setStep((s) => s - 1)}>
+            <button className="ss-textlink" onClick={() => setStep((s) => s - 1)}>
               Back to the previous question
             </button>
           )}
-        </fieldset>
+        </section>
       )}
 
       {result && (
         <section className="ss-finder__result" aria-live="polite">
-          <div className="ss-finder__can">
-            <Can flavour={result.best.flavour} title={result.best.flavour.name} />
-          </div>
-          <div>
-            <p className="ss-hero__mile">Your stop is Mile {result.best.flavour.mile}</p>
-            <h2>{result.best.flavour.name}</h2>
-            <p className="ss-hero__line">{result.best.flavour.line}</p>
-            <p>
-              We picked it because {result.best.reasons.join(", and ")}.
+          <img src={asset(`img/sailor/portrait-${result.best.flavour.id}.webp`)} alt={`${result.best.flavour.name} in its own light`} />
+          <div className="ss-finder__answer">
+            <p className="ss-pdp__mile">
+              <span>Your stop is mile {result.best.flavour.mile}</span>
             </p>
+            <h1>{result.best.flavour.name}</h1>
+            <p className="ss-pdp__line">{result.best.flavour.line}</p>
+            <p>We picked it because {result.best.reasons.join(", and ")}.</p>
             <p className="ss-finder__runner">
               Close second: <a href={href(`${base}/shop/${result.runnerUp.flavour.id}`)}>{result.runnerUp.flavour.name}</a>.
             </p>
-            <div className="ss-hero__buy">
+            <div className="ss-finder__actions">
               <button className="ss-btn" onClick={() => add({ product: result.best.flavour.id, format: "4", qty: 1 })}>
                 Add a 4-pack — $9
               </button>
-              <a className="ss-link" href={href(`${base}/shop/${result.best.flavour.id}`)}>
-                See tasting notes
+              <a className="ss-textlink" href={href(`${base}/shop/${result.best.flavour.id}`)}>
+                Tasting notes
               </a>
               <button
-                className="ss-link"
+                className="ss-textlink"
                 onClick={() => {
                   setAnswers({});
                   setStep(0);

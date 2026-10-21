@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef, useState, type ElementType, type ReactNode, type RefObject } from "react";
+import { createElement, Fragment, useEffect, useRef, useState, type ElementType, type ReactNode, type RefObject } from "react";
 import { prefersReducedMotion } from "./motion";
 
 /**
@@ -23,7 +23,7 @@ function sharedObserver() {
           callbacks.delete(e.target);
         }
       }),
-    { rootMargin: "0px 0px -12% 0px", threshold: 0.12 },
+    { rootMargin: "0px 0px -4% 0px", threshold: 0.01 },
   );
   return observer;
 }
@@ -85,11 +85,14 @@ export function SplitWords({ text, className = "", stagger = 60, delay = 0 }: { 
   return (
     <span ref={ref} className={`split ${inView ? "is-in" : ""} ${className}`} aria-label={text}>
       {words.map((w, i) => (
-        <span key={i} className="split__mask" aria-hidden="true">
-          <span className="split__word" style={{ transitionDelay: `${delay + i * stagger}ms` }}>
-            {w}
-          </span>{" "}
-        </span>
+        <Fragment key={i}>
+          <span className="split__mask" aria-hidden="true">
+            <span className="split__word" style={{ transitionDelay: `${delay + i * stagger}ms` }}>
+              {w}
+            </span>
+          </span>
+          {i < words.length - 1 && " "}
+        </Fragment>
       ))}
     </span>
   );
